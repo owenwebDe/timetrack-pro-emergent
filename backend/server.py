@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from .database.mongodb import connect_to_mongo, close_mongo_connection
 
 # Import routes
-from routes import auth, users, projects, time_tracking, analytics, integrations, websocket
+from .routes import auth, users, projects, time_tracking, analytics, integrations, websocket
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
