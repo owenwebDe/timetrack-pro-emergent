@@ -107,11 +107,16 @@ class HubstaffAPITest(unittest.TestCase):
 
     def test_01_health_check(self):
         """Test health check endpoint"""
-        response = requests.get(f"{BASE_URL}/health")
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["status"], "healthy")
-        self.assertEqual(data["service"], "Hubstaff Clone API")
+        try:
+            response = requests.get(f"{BASE_URL}/health")
+            print(f"Health check response: {response.status_code}, {response.text}")
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["status"], "healthy")
+            self.assertEqual(data["service"], "Hubstaff Clone API")
+        except Exception as e:
+            print(f"Health check error: {e}")
+            raise
 
     def test_02_api_root(self):
         """Test API root endpoint"""
