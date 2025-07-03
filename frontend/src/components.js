@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-// Mock data
-const mockUsers = [
-  { id: 1, name: "John Doe", email: "john@example.com", role: "admin", status: "active", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "manager", status: "active", avatar: "https://images.unsplash.com/photo-1494790108755-2616b412fb0a?w=40&h=40&fit=crop&crop=face" },
-  { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "user", status: "active", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" },
-  { id: 4, name: "Sarah Wilson", email: "sarah@example.com", role: "user", status: "idle", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face" },
-];
-
-const mockProjects = [
-  { id: 1, name: "Website Redesign", client: "Acme Corp", hours: 45.5, budget: 5000, spent: 2275, status: "active" },
-  { id: 2, name: "Mobile App Development", client: "Tech Solutions", hours: 120.3, budget: 15000, spent: 12025, status: "active" },
-  { id: 3, name: "Marketing Campaign", client: "Brand Co", hours: 28.7, budget: 3000, spent: 1435, status: "completed" },
-];
-
-const mockTasks = [
-  { id: 1, title: "Design Homepage", project: "Website Redesign", assignee: "Jane Smith", status: "in-progress", priority: "high" },
-  { id: 2, title: "Implement Authentication", project: "Mobile App Development", assignee: "Mike Johnson", status: "todo", priority: "medium" },
-  { id: 3, title: "Create Social Media Posts", project: "Marketing Campaign", assignee: "Sarah Wilson", status: "completed", priority: "low" },
-];
+import { format } from "date-fns";
+import { 
+  authAPI, 
+  usersAPI, 
+  projectsAPI, 
+  timeTrackingAPI, 
+  analyticsAPI, 
+  integrationsAPI 
+} from "./api/client";
+import { useWebSocket } from "./hooks/useWebSocket";
+import { 
+  ProductivityChart, 
+  TimeTrackingChart, 
+  ProjectBreakdownChart, 
+  TeamPerformanceChart 
+} from "./components/Charts";
 
 // Header Component
 const Header = ({ user, onLogout, currentPage }) => {
+  const { notifications, markNotificationAsRead } = useWebSocket(user);
+  const [showNotifications, setShowNotifications] = useState(false);
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,9 +38,51 @@ const Header = ({ user, onLogout, currentPage }) => {
           {user ? (
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">{currentPage}</span>
+              
+              {/* Notifications */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-gray-600 hover:text-gray-900"
+                >
+                  🔔
+                  {notifications.length > 0 && (
+                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+                
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="p-4 text-gray-500 text-center">No new notifications</p>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div key={notification.id} className="p-3 border-b border-gray-100 hover:bg-gray-50">
+                            <p className="text-sm text-gray-900">{notification.message}</p>
+                            <p className="text-xs text-gray-500">{format(notification.timestamp, 'PPp')}</p>
+                            <button
+                              onClick={() => markNotificationAsRead(notification.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                            >
+                              Mark as read
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <div className="relative">
                 <div className="flex items-center space-x-2">
-                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                  <img src={user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"} alt={user.name} className="w-8 h-8 rounded-full" />
                   <span className="text-gray-700">{user.name}</span>
                   <button
                     onClick={onLogout}
@@ -74,6 +115,7 @@ const Sidebar = ({ currentPage }) => {
     { name: "Team", icon: "👥", path: "/team" },
     { name: "Projects", icon: "📁", path: "/projects" },
     { name: "Reports", icon: "📈", path: "/reports" },
+    { name: "Integrations", icon: "🔗", path: "/integrations" },
     { name: "Settings", icon: "⚙️", path: "/settings" },
   ];
 
@@ -101,8 +143,34 @@ const Sidebar = ({ currentPage }) => {
   );
 };
 
-// Timer Component
-const Timer = ({ isRunning, time, onStart, onStop, onReset }) => {
+// Enhanced Timer Component
+const Timer = ({ activeEntry, onStart, onStop, onReset }) => {
+  const [time, setTime] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+
+  useEffect(() => {
+    if (activeEntry) {
+      const startTime = new Date(activeEntry.start_time);
+      const now = new Date();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      setTime(elapsed);
+      setIsRunning(true);
+    } else {
+      setTime(0);
+      setIsRunning(false);
+    }
+  }, [activeEntry]);
+
+  useEffect(() => {
+    let interval;
+    if (isRunning) {
+      interval = setInterval(() => {
+        setTime(time => time + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
   const formatTime = (seconds) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -110,24 +178,51 @@ const Timer = ({ isRunning, time, onStart, onStop, onReset }) => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const handleStart = async () => {
+    try {
+      await onStart();
+      setIsRunning(true);
+    } catch (error) {
+      console.error('Failed to start timer:', error);
+    }
+  };
+
+  const handleStop = async () => {
+    try {
+      if (activeEntry) {
+        await onStop(activeEntry.id);
+        setIsRunning(false);
+        setTime(0);
+      }
+    } catch (error) {
+      console.error('Failed to stop timer:', error);
+    }
+  };
+
+  const handleReset = () => {
+    setTime(0);
+    setIsRunning(false);
+    onReset();
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
       <div className="text-center">
-        <div className="text-4xl font-mono font-bold text-gray-900 mb-4">
+        <div className="text-4xl font-mono font-bold text-gray-900 mb-4 timer-display">
           {formatTime(time)}
         </div>
         <div className="flex justify-center space-x-4">
           {!isRunning ? (
             <button
-              onClick={onStart}
-              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 flex items-center"
+              onClick={handleStart}
+              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 flex items-center btn-primary"
             >
               <span className="mr-2">▶️</span>
               Start
             </button>
           ) : (
             <button
-              onClick={onStop}
+              onClick={handleStop}
               className="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 flex items-center"
             >
               <span className="mr-2">⏸️</span>
@@ -135,7 +230,7 @@ const Timer = ({ isRunning, time, onStart, onStop, onReset }) => {
             </button>
           )}
           <button
-            onClick={onReset}
+            onClick={handleReset}
             className="bg-gray-600 text-white px-6 py-3 rounded-md hover:bg-gray-700 flex items-center"
           >
             <span className="mr-2">🔄</span>
@@ -150,7 +245,7 @@ const Timer = ({ isRunning, time, onStart, onStop, onReset }) => {
 // Dashboard Widget Component
 const DashboardWidget = ({ title, value, subtitle, icon, color = "blue" }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 card-hover">
       <div className="flex items-center">
         <div className={`p-3 rounded-lg bg-${color}-100`}>
           <span className="text-2xl">{icon}</span>
@@ -168,15 +263,15 @@ const DashboardWidget = ({ title, value, subtitle, icon, color = "blue" }) => {
 // HomePage Component
 export const HomePage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 bg-pattern">
       <Header />
       
       {/* Hero Section */}
       <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 hero-text">
             Time tracking software for the{" "}
-            <span className="text-blue-300">global workforce</span>
+            <span className="text-gradient">global workforce</span>
           </h1>
           <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto">
             Integrated time tracking, productivity metrics, and payroll for your distributed team.
@@ -186,11 +281,11 @@ export const HomePage = () => {
             <input
               type="email"
               placeholder="Enter your work email"
-              className="px-4 py-3 w-full sm:w-80 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-3 w-full sm:w-80 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 input-focus"
             />
             <Link
               to="/signup"
-              className="bg-blue-600 text-white px-8 py-3 rounded-md font-semibold hover:bg-blue-700 transition-colors"
+              className="bg-blue-600 text-white px-8 py-3 rounded-md font-semibold hover:bg-blue-700 transition-colors btn-primary"
             >
               Create account
             </Link>
@@ -237,7 +332,7 @@ export const HomePage = () => {
             <img 
               src="https://images.unsplash.com/photo-1587401511935-a7f87afadf2f?w=1200&h=600&fit=crop" 
               alt="Dashboard Preview" 
-              className="w-full rounded-lg shadow-2xl"
+              className="w-full rounded-lg shadow-2xl shadow-custom-lg"
             />
             <div className="absolute top-4 right-4">
               <img 
@@ -262,7 +357,7 @@ export const HomePage = () => {
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
+            <div className="text-center feature-card p-6 rounded-lg">
               <img 
                 src="https://images.unsplash.com/photo-1616175304583-ed54838016f3?w=300&h=200&fit=crop" 
                 alt="Desktop tracking" 
@@ -272,7 +367,7 @@ export const HomePage = () => {
               <p className="text-blue-100">Track time automatically with desktop apps for Windows, Mac, and Linux.</p>
             </div>
             
-            <div className="text-center">
+            <div className="text-center feature-card p-6 rounded-lg">
               <img 
                 src="https://images.unsplash.com/photo-1555212697-194d092e3b8f?w=300&h=200&fit=crop" 
                 alt="Web tracking" 
@@ -282,7 +377,7 @@ export const HomePage = () => {
               <p className="text-blue-100">Access time tracking from any browser with our web-based platform.</p>
             </div>
             
-            <div className="text-center">
+            <div className="text-center feature-card p-6 rounded-lg">
               <img 
                 src="https://images.unsplash.com/photo-1655388333786-6b8270e2e154?w=300&h=200&fit=crop" 
                 alt="Mobile tracking" 
