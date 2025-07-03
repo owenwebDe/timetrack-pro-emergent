@@ -123,7 +123,7 @@ class HubstaffAPITest(unittest.TestCase):
     def test_02_api_root(self):
         """Test API root endpoint"""
         try:
-            response = requests.get(f"{API_URL}/")
+            response = requests.get(f"{LOCAL_URL}/api")
             print(f"API root response: {response.status_code}, {response.text}")
             self.assertEqual(response.status_code, 200)
             data = response.json()
