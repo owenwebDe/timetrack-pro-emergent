@@ -515,22 +515,33 @@ export const HomePage = () => {
 
 // LoginPage Component
 export const LoginPage = ({ onLogin }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: ""
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mock authentication
-    const mockUser = {
-      id: 1,
-      name: "John Doe",
-      email: email,
-      role: "admin",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"
-    };
-    onLogin(mockUser);
-    navigate("/dashboard");
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await authAPI.login(formData);
+      const { access_token, user } = response.data;
+      
+      localStorage.setItem('hubstaff_token', access_token);
+      localStorage.setItem('hubstaff_user', JSON.stringify(user));
+      
+      onLogin(user);
+      navigate("/dashboard");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -547,6 +558,12 @@ export const LoginPage = ({ onLogin }) => {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-white">
               Email address
@@ -554,8 +571,8 @@ export const LoginPage = ({ onLogin }) => {
             <input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
@@ -568,8 +585,8 @@ export const LoginPage = ({ onLogin }) => {
             <input
               id="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
@@ -577,9 +594,10 @@ export const LoginPage = ({ onLogin }) => {
           
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            Sign in
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
         
@@ -604,20 +622,29 @@ export const SignupPage = ({ onLogin }) => {
     password: "",
     company: ""
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mock registration
-    const mockUser = {
-      id: 1,
-      name: formData.name,
-      email: formData.email,
-      role: "admin",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"
-    };
-    onLogin(mockUser);
-    navigate("/dashboard");
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await authAPI.register(formData);
+      const { access_token, user } = response.data;
+      
+      localStorage.setItem('hubstaff_token', access_token);
+      localStorage.setItem('hubstaff_user', JSON.stringify(user));
+      
+      onLogin(user);
+      navigate("/dashboard");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -635,6 +662,12 @@ export const SignupPage = ({ onLogin }) => {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-white">
               Full name
@@ -693,9 +726,10 @@ export const SignupPage = ({ onLogin }) => {
           
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            Start free trial
+            {loading ? "Creating account..." : "Start free trial"}
           </button>
         </form>
         
@@ -714,21 +748,65 @@ export const SignupPage = ({ onLogin }) => {
 
 // DashboardPage Component
 export const DashboardPage = ({ user, onLogout }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [dashboardData, setDashboardData] = useState({
+    widgets: [],
+    teamActivity: [],
+    recentProjects: []
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
+    fetchDashboardData();
   }, []);
 
-  const widgets = [
-    { title: "Hours Worked", value: "442:00", subtitle: "This week", icon: "⏰", color: "blue" },
-    { title: "Active Workers", value: "21", subtitle: "Right now", icon: "👥", color: "green" },
-    { title: "Projects", value: "12", subtitle: "Active projects", icon: "📁", color: "purple" },
-    { title: "Activity Level", value: "84%", subtitle: "Team average", icon: "📊", color: "orange" },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      const [analyticsResponse, usersResponse, projectsResponse] = await Promise.all([
+        analyticsAPI.getDashboardAnalytics(),
+        usersAPI.getUsers({ limit: 10 }),
+        projectsAPI.getProjects({ limit: 5 })
+      ]);
+
+      const analytics = analyticsResponse.data;
+      const users = usersResponse.data;
+      const projects = projectsResponse.data;
+
+      const widgets = [
+        { title: "Hours Worked", value: `${analytics.user_stats?.total_hours || 0}h`, subtitle: "This month", icon: "⏰", color: "blue" },
+        { title: "Active Workers", value: users.filter(u => u.status === 'active').length, subtitle: "Right now", icon: "👥", color: "green" },
+        { title: "Projects", value: projects.length, subtitle: "Active projects", icon: "📁", color: "purple" },
+        { title: "Activity Level", value: `${Math.round(analytics.user_stats?.avg_activity || 0)}%`, subtitle: "This week", icon: "📊", color: "orange" },
+      ];
+
+      setDashboardData({
+        widgets,
+        teamActivity: users,
+        recentProjects: projects
+      });
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={onLogout} currentPage="Dashboard" />
+        <div className="flex">
+          <Sidebar currentPage="Dashboard" />
+          <main className="flex-1 ml-64 p-8">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center h-64">
+                <div className="spinner"></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -747,7 +825,7 @@ export const DashboardPage = ({ user, onLogout }) => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {widgets.map((widget, index) => (
+              {dashboardData.widgets.map((widget, index) => (
                 <DashboardWidget key={index} {...widget} />
               ))}
             </div>
@@ -757,9 +835,13 @@ export const DashboardPage = ({ user, onLogout }) => {
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Activity</h3>
                 <div className="space-y-4">
-                  {mockUsers.map((user) => (
+                  {dashboardData.teamActivity.slice(0, 4).map((user) => (
                     <div key={user.id} className="flex items-center space-x-3">
-                      <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full" />
+                      <img 
+                        src={user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"} 
+                        alt={user.name} 
+                        className="w-10 h-10 rounded-full" 
+                      />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium text-gray-900">{user.name}</h4>
@@ -781,7 +863,7 @@ export const DashboardPage = ({ user, onLogout }) => {
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Projects</h3>
                 <div className="space-y-4">
-                  {mockProjects.map((project) => (
+                  {dashboardData.recentProjects.map((project) => (
                     <div key={project.id} className="border-l-4 border-blue-500 pl-4">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium text-gray-900">{project.name}</h4>
@@ -794,7 +876,7 @@ export const DashboardPage = ({ user, onLogout }) => {
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">{project.client}</p>
-                      <p className="text-sm text-gray-600">{project.hours} hours tracked</p>
+                      <p className="text-sm text-gray-600">{project.hours_tracked || 0} hours tracked</p>
                     </div>
                   ))}
                 </div>
@@ -809,33 +891,81 @@ export const DashboardPage = ({ user, onLogout }) => {
 
 // TimeTrackingPage Component
 export const TimeTrackingPage = ({ user, onLogout }) => {
-  const [isRunning, setIsRunning] = useState(false);
-  const [time, setTime] = useState(0);
+  const [activeEntry, setActiveEntry] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let interval;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setTime(time => time + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning]);
+    fetchData();
+  }, []);
 
-  const handleStart = () => {
-    setIsRunning(true);
+  const fetchData = async () => {
+    try {
+      const [activeResponse, projectsResponse] = await Promise.all([
+        timeTrackingAPI.getActiveEntry(),
+        projectsAPI.getProjects()
+      ]);
+      
+      setActiveEntry(activeResponse.data);
+      setProjects(projectsResponse.data);
+    } catch (error) {
+      console.error('Failed to fetch time tracking data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStop = () => {
-    setIsRunning(false);
+  const handleStart = async () => {
+    if (!selectedProject) {
+      alert('Please select a project first');
+      return;
+    }
+
+    try {
+      const response = await timeTrackingAPI.startTracking({
+        project_id: selectedProject,
+        task_id: selectedTask || null,
+        description: "Working on project"
+      });
+      setActiveEntry(response.data);
+    } catch (error) {
+      console.error('Failed to start tracking:', error);
+    }
+  };
+
+  const handleStop = async (entryId) => {
+    try {
+      await timeTrackingAPI.stopTracking(entryId);
+      setActiveEntry(null);
+    } catch (error) {
+      console.error('Failed to stop tracking:', error);
+    }
   };
 
   const handleReset = () => {
-    setTime(0);
-    setIsRunning(false);
+    // Reset local state only
+    setSelectedProject("");
+    setSelectedTask("");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={onLogout} currentPage="Time Tracking" />
+        <div className="flex">
+          <Sidebar currentPage="Time Tracking" />
+          <main className="flex-1 ml-64 p-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="spinner"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -855,8 +985,7 @@ export const TimeTrackingPage = ({ user, onLogout }) => {
             {/* Timer Section */}
             <div className="mb-8">
               <Timer 
-                isRunning={isRunning}
-                time={time}
+                activeEntry={activeEntry}
                 onStart={handleStart}
                 onStop={handleStop}
                 onReset={handleReset}
@@ -877,7 +1006,7 @@ export const TimeTrackingPage = ({ user, onLogout }) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select a project</option>
-                    {mockProjects.map((project) => (
+                    {projects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name}
                       </option>
@@ -893,8 +1022,8 @@ export const TimeTrackingPage = ({ user, onLogout }) => {
                     onChange={(e) => setSelectedTask(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Select a task</option>
-                    {mockTasks.map((task) => (
+                    <option value="">Select a task (optional)</option>
+                    {tasks.map((task) => (
                       <option key={task.id} value={task.id}>
                         {task.title}
                       </option>
