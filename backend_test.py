@@ -120,11 +120,16 @@ class HubstaffAPITest(unittest.TestCase):
 
     def test_02_api_root(self):
         """Test API root endpoint"""
-        response = requests.get(f"{API_URL}/")
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("message", data)
-        self.assertIn("version", data)
+        try:
+            response = requests.get(f"{API_URL}/")
+            print(f"API root response: {response.status_code}, {response.text}")
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIn("message", data)
+            self.assertIn("version", data)
+        except Exception as e:
+            print(f"API root error: {e}")
+            raise
 
     # Authentication Tests
     def test_03_register_admin(self):
