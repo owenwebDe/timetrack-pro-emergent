@@ -19,7 +19,9 @@ with open('/app/frontend/.env', 'r') as f:
             BASE_URL = line.strip().split('=')[1].strip('"\'')
             break
 
-API_URL = f"{BASE_URL}/api"
+# For local testing
+LOCAL_URL = "http://localhost:8001"
+API_URL = f"{LOCAL_URL}/api"
 print(f"Testing API at: {API_URL}")
 
 class HubstaffAPITest(unittest.TestCase):
