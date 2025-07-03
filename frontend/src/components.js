@@ -1,0 +1,1617 @@
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+
+// Mock data
+const mockUsers = [
+  { id: 1, name: "John Doe", email: "john@example.com", role: "admin", status: "active", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" },
+  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "manager", status: "active", avatar: "https://images.unsplash.com/photo-1494790108755-2616b412fb0a?w=40&h=40&fit=crop&crop=face" },
+  { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "user", status: "active", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" },
+  { id: 4, name: "Sarah Wilson", email: "sarah@example.com", role: "user", status: "idle", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face" },
+];
+
+const mockProjects = [
+  { id: 1, name: "Website Redesign", client: "Acme Corp", hours: 45.5, budget: 5000, spent: 2275, status: "active" },
+  { id: 2, name: "Mobile App Development", client: "Tech Solutions", hours: 120.3, budget: 15000, spent: 12025, status: "active" },
+  { id: 3, name: "Marketing Campaign", client: "Brand Co", hours: 28.7, budget: 3000, spent: 1435, status: "completed" },
+];
+
+const mockTasks = [
+  { id: 1, title: "Design Homepage", project: "Website Redesign", assignee: "Jane Smith", status: "in-progress", priority: "high" },
+  { id: 2, title: "Implement Authentication", project: "Mobile App Development", assignee: "Mike Johnson", status: "todo", priority: "medium" },
+  { id: 3, title: "Create Social Media Posts", project: "Marketing Campaign", assignee: "Sarah Wilson", status: "completed", priority: "low" },
+];
+
+// Header Component
+const Header = ({ user, onLogout, currentPage }) => {
+  return (
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                <span className="text-white font-bold text-lg">H</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900">Hubstaff</span>
+            </Link>
+          </div>
+          
+          {user ? (
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-700">{currentPage}</span>
+              <div className="relative">
+                <div className="flex items-center space-x-2">
+                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                  <span className="text-gray-700">{user.name}</span>
+                  <button
+                    onClick={onLogout}
+                    className="text-gray-500 hover:text-gray-700 ml-2"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <Link to="/login" className="text-gray-700 hover:text-gray-900">Sign in</Link>
+              <Link to="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Free 14-day trial
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+};
+
+// Sidebar Component
+const Sidebar = ({ currentPage }) => {
+  const menuItems = [
+    { name: "Dashboard", icon: "📊", path: "/dashboard" },
+    { name: "Time Tracking", icon: "⏰", path: "/time-tracking" },
+    { name: "Team", icon: "👥", path: "/team" },
+    { name: "Projects", icon: "📁", path: "/projects" },
+    { name: "Reports", icon: "📈", path: "/reports" },
+    { name: "Settings", icon: "⚙️", path: "/settings" },
+  ];
+
+  return (
+    <div className="w-64 bg-white shadow-sm h-screen fixed left-0 top-16 border-r border-gray-200">
+      <nav className="mt-8">
+        <div className="px-4 space-y-2">
+          {menuItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors ${
+                currentPage === item.name
+                  ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <span className="mr-3">{item.icon}</span>
+              {item.name}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+};
+
+// Timer Component
+const Timer = ({ isRunning, time, onStart, onStop, onReset }) => {
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+      <div className="text-center">
+        <div className="text-4xl font-mono font-bold text-gray-900 mb-4">
+          {formatTime(time)}
+        </div>
+        <div className="flex justify-center space-x-4">
+          {!isRunning ? (
+            <button
+              onClick={onStart}
+              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 flex items-center"
+            >
+              <span className="mr-2">▶️</span>
+              Start
+            </button>
+          ) : (
+            <button
+              onClick={onStop}
+              className="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 flex items-center"
+            >
+              <span className="mr-2">⏸️</span>
+              Stop
+            </button>
+          )}
+          <button
+            onClick={onReset}
+            className="bg-gray-600 text-white px-6 py-3 rounded-md hover:bg-gray-700 flex items-center"
+          >
+            <span className="mr-2">🔄</span>
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Dashboard Widget Component
+const DashboardWidget = ({ title, value, subtitle, icon, color = "blue" }) => {
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+      <div className="flex items-center">
+        <div className={`p-3 rounded-lg bg-${color}-100`}>
+          <span className="text-2xl">{icon}</span>
+        </div>
+        <div className="ml-4">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-sm text-gray-500">{subtitle}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// HomePage Component
+export const HomePage = () => {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800">
+      <Header />
+      
+      {/* Hero Section */}
+      <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+            Time tracking software for the{" "}
+            <span className="text-blue-300">global workforce</span>
+          </h1>
+          <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto">
+            Integrated time tracking, productivity metrics, and payroll for your distributed team.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
+            <input
+              type="email"
+              placeholder="Enter your work email"
+              className="px-4 py-3 w-full sm:w-80 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Link
+              to="/signup"
+              className="bg-blue-600 text-white px-8 py-3 rounded-md font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Create account
+            </Link>
+          </div>
+          
+          <div className="text-blue-100 text-sm space-x-4">
+            <span>Free 14-day trial</span>
+            <span>•</span>
+            <span>No credit card required</span>
+            <span>•</span>
+            <span>Cancel anytime</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-8 mb-16">
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-blue-300">⏰</span>
+              <span>Global time tracking</span>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-blue-300">📊</span>
+              <span>Productivity data</span>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-blue-300">💰</span>
+              <span>Flexible payroll</span>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-blue-300">👥</span>
+              <span>Attendance management</span>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-blue-300">💡</span>
+              <span>Project cost and budgeting</span>
+            </div>
+          </div>
+
+          {/* Dashboard Preview */}
+          <div className="relative">
+            <img 
+              src="https://images.unsplash.com/photo-1587401511935-a7f87afadf2f?w=1200&h=600&fit=crop" 
+              alt="Dashboard Preview" 
+              className="w-full rounded-lg shadow-2xl"
+            />
+            <div className="absolute top-4 right-4">
+              <img 
+                src="https://images.unsplash.com/photo-1545063328-c8e3faffa16f?w=300&h=600&fit=crop" 
+                alt="Mobile App" 
+                className="w-32 h-64 rounded-lg shadow-xl"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Multi-device Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-black bg-opacity-20">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Multi-device time clock software
+          </h2>
+          <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
+            Save hours each week with our easy-to-use employee time tracking. Then, convert desktop, web, mobile, or GPS 
+            time tracking data to automated timesheets.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <img 
+                src="https://images.unsplash.com/photo-1616175304583-ed54838016f3?w=300&h=200&fit=crop" 
+                alt="Desktop tracking" 
+                className="w-full h-48 object-cover rounded-lg mb-4"
+              />
+              <h3 className="text-xl font-semibold text-white mb-2">Desktop</h3>
+              <p className="text-blue-100">Track time automatically with desktop apps for Windows, Mac, and Linux.</p>
+            </div>
+            
+            <div className="text-center">
+              <img 
+                src="https://images.unsplash.com/photo-1555212697-194d092e3b8f?w=300&h=200&fit=crop" 
+                alt="Web tracking" 
+                className="w-full h-48 object-cover rounded-lg mb-4"
+              />
+              <h3 className="text-xl font-semibold text-white mb-2">Web</h3>
+              <p className="text-blue-100">Access time tracking from any browser with our web-based platform.</p>
+            </div>
+            
+            <div className="text-center">
+              <img 
+                src="https://images.unsplash.com/photo-1655388333786-6b8270e2e154?w=300&h=200&fit=crop" 
+                alt="Mobile tracking" 
+                className="w-full h-48 object-cover rounded-lg mb-4"
+              />
+              <h3 className="text-xl font-semibold text-white mb-2">Mobile</h3>
+              <p className="text-blue-100">Track time on the go with iOS and Android mobile apps.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-white mb-12">
+            Time tracking & productivity metrics trusted by 112,000+ businesses
+          </h2>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-white mb-2">500k+</div>
+              <div className="text-blue-100">Active users</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-white mb-2">21M+</div>
+              <div className="text-blue-100">Total hours tracked</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-white mb-2">4M+</div>
+              <div className="text-blue-100">Tasks completed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-white mb-2">300k+</div>
+              <div className="text-blue-100">Payments</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Groups of <span className="text-blue-600">features</span>
+            </h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">⏰</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Time Tracking</h3>
+              <p className="text-gray-600">Automatic time tracking with detailed reports and analytics.</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📊</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Employee productivity</h3>
+              <p className="text-gray-600">Monitor activity levels and productivity metrics.</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">👥</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Workforce management</h3>
+              <p className="text-gray-600">Manage teams, projects, and tasks efficiently.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <img 
+                src="https://images.unsplash.com/photo-1572205796404-7d40a79a98d6?w=500&h=400&fit=crop" 
+                alt="Time tracking feature" 
+                className="w-full rounded-lg shadow-lg"
+              />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                <span className="text-blue-600">⏰</span> Time tracking
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Smarter, streamlined employee time tracking for any type of business. 
+                Track work hours, set limits, and get detailed timesheets to review and 
+                approve with one simple tool.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <span className="text-blue-600">✓</span>
+                  <span className="text-gray-700">Automatic time tracking</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="text-blue-600">✓</span>
+                  <span className="text-gray-700">Manual time entry</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="text-blue-600">✓</span>
+                  <span className="text-gray-700">Time tracking reports</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="flex items-center justify-center mb-8">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+              <span className="text-white font-bold text-lg">H</span>
+            </div>
+            <span className="text-xl font-bold">Hubstaff</span>
+          </div>
+          <p className="text-gray-400 mb-8">
+            Time tracking software for the global workforce
+          </p>
+          <div className="flex justify-center space-x-8">
+            <Link to="/login" className="text-gray-400 hover:text-white">Login</Link>
+            <Link to="/signup" className="text-gray-400 hover:text-white">Sign Up</Link>
+            <a href="#" className="text-gray-400 hover:text-white">Features</a>
+            <a href="#" className="text-gray-400 hover:text-white">Pricing</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+// LoginPage Component
+export const LoginPage = ({ onLogin }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Mock authentication
+    const mockUser = {
+      id: 1,
+      name: "John Doe",
+      email: email,
+      role: "admin",
+      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"
+    };
+    onLogin(mockUser);
+    navigate("/dashboard");
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 flex items-center justify-center px-4">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-8">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+              <span className="text-white font-bold text-xl">H</span>
+            </div>
+            <span className="text-2xl font-bold text-white">Hubstaff</span>
+          </div>
+          <h2 className="text-3xl font-bold text-white">Sign in to your account</h2>
+        </div>
+        
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-white">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-white">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Sign in
+          </button>
+        </form>
+        
+        <div className="text-center">
+          <p className="text-blue-100">
+            Don't have an account?{" "}
+            <Link to="/signup" className="text-white font-semibold hover:underline">
+              Sign up for free
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// SignupPage Component
+export const SignupPage = ({ onLogin }) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    company: ""
+  });
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Mock registration
+    const mockUser = {
+      id: 1,
+      name: formData.name,
+      email: formData.email,
+      role: "admin",
+      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"
+    };
+    onLogin(mockUser);
+    navigate("/dashboard");
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 flex items-center justify-center px-4">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-8">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+              <span className="text-white font-bold text-xl">H</span>
+            </div>
+            <span className="text-2xl font-bold text-white">Hubstaff</span>
+          </div>
+          <h2 className="text-3xl font-bold text-white">Create your account</h2>
+          <p className="text-blue-100 mt-2">Start your free 14-day trial</p>
+        </div>
+        
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-white">
+              Full name
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-white">
+              Work email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="company" className="block text-sm font-medium text-white">
+              Company name
+            </label>
+            <input
+              id="company"
+              type="text"
+              value={formData.company}
+              onChange={(e) => setFormData({...formData, company: e.target.value})}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-white">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Start free trial
+          </button>
+        </form>
+        
+        <div className="text-center">
+          <p className="text-blue-100">
+            Already have an account?{" "}
+            <Link to="/login" className="text-white font-semibold hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// DashboardPage Component
+export const DashboardPage = ({ user, onLogout }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const widgets = [
+    { title: "Hours Worked", value: "442:00", subtitle: "This week", icon: "⏰", color: "blue" },
+    { title: "Active Workers", value: "21", subtitle: "Right now", icon: "👥", color: "green" },
+    { title: "Projects", value: "12", subtitle: "Active projects", icon: "📁", color: "purple" },
+    { title: "Activity Level", value: "84%", subtitle: "Team average", icon: "📊", color: "orange" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Dashboard" />
+      <div className="flex">
+        <Sidebar currentPage="Dashboard" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-gray-600 mt-2">
+                Welcome back, {user.name}! Here's what's happening with your team today.
+              </p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {widgets.map((widget, index) => (
+                <DashboardWidget key={index} {...widget} />
+              ))}
+            </div>
+
+            {/* Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Activity</h3>
+                <div className="space-y-4">
+                  {mockUsers.map((user) => (
+                    <div key={user.id} className="flex items-center space-x-3">
+                      <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-gray-900">{user.name}</h4>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            user.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {user.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500">{user.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Projects</h3>
+                <div className="space-y-4">
+                  {mockProjects.map((project) => (
+                    <div key={project.id} className="border-l-4 border-blue-500 pl-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-gray-900">{project.name}</h4>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          project.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">{project.client}</p>
+                      <p className="text-sm text-gray-600">{project.hours} hours tracked</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// TimeTrackingPage Component
+export const TimeTrackingPage = ({ user, onLogout }) => {
+  const [isRunning, setIsRunning] = useState(false);
+  const [time, setTime] = useState(0);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedTask, setSelectedTask] = useState("");
+
+  useEffect(() => {
+    let interval;
+    if (isRunning) {
+      interval = setInterval(() => {
+        setTime(time => time + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  const handleStart = () => {
+    setIsRunning(true);
+  };
+
+  const handleStop = () => {
+    setIsRunning(false);
+  };
+
+  const handleReset = () => {
+    setTime(0);
+    setIsRunning(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Time Tracking" />
+      <div className="flex">
+        <Sidebar currentPage="Time Tracking" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Time Tracking</h1>
+              <p className="text-gray-600 mt-2">
+                Track your time and manage your tasks efficiently.
+              </p>
+            </div>
+
+            {/* Timer Section */}
+            <div className="mb-8">
+              <Timer 
+                isRunning={isRunning}
+                time={time}
+                onStart={handleStart}
+                onStop={handleStop}
+                onReset={handleReset}
+              />
+            </div>
+
+            {/* Project and Task Selection */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">What are you working on?</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project
+                  </label>
+                  <select
+                    value={selectedProject}
+                    onChange={(e) => setSelectedProject(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a project</option>
+                    {mockProjects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Task
+                  </label>
+                  <select
+                    value={selectedTask}
+                    onChange={(e) => setSelectedTask(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a task</option>
+                    {mockTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Activity Monitor */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Monitor</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-2xl">📸</span>
+                  </div>
+                  <h4 className="font-medium text-gray-900">Screenshots</h4>
+                  <p className="text-sm text-gray-500">Every 10 minutes</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-2xl">🖱️</span>
+                  </div>
+                  <h4 className="font-medium text-gray-900">Mouse Activity</h4>
+                  <p className="text-sm text-gray-500">85% active</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-2xl">⌨️</span>
+                  </div>
+                  <h4 className="font-medium text-gray-900">Keyboard Activity</h4>
+                  <p className="text-sm text-gray-500">78% active</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// TeamManagementPage Component
+export const TeamManagementPage = ({ user, onLogout }) => {
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+
+  const handleInviteUser = (e) => {
+    e.preventDefault();
+    // Mock invitation logic
+    alert(`Invitation sent to ${inviteEmail}`);
+    setInviteEmail("");
+    setShowInviteModal(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Team" />
+      <div className="flex">
+        <Sidebar currentPage="Team" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
+                <p className="text-gray-600 mt-2">
+                  Manage your team members and their roles.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 flex items-center"
+              >
+                <span className="mr-2">➕</span>
+                Invite Member
+              </button>
+            </div>
+
+            {/* Team Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <DashboardWidget title="Team Members" value="4" subtitle="Active users" icon="👥" color="blue" />
+              <DashboardWidget title="Online Now" value="2" subtitle="Currently active" icon="🟢" color="green" />
+              <DashboardWidget title="Total Hours" value="342" subtitle="This week" icon="⏰" color="purple" />
+            </div>
+
+            {/* Team Members List */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Team Members</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours This Week</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {mockUsers.map((member) => (
+                      <tr key={member.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <img src={member.avatar} alt={member.name} className="w-10 h-10 rounded-full mr-3" />
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                              <div className="text-sm text-gray-500">{member.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            member.role === 'admin' 
+                              ? 'bg-red-100 text-red-800'
+                              : member.role === 'manager'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {member.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            member.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {member.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {Math.floor(Math.random() * 40) + 10}h
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                          <button className="text-red-600 hover:text-red-900">Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h3>
+            <form onSubmit={handleInviteUser}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Send Invitation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ProjectsPage Component
+export const ProjectsPage = ({ user, onLogout }) => {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newProject, setNewProject] = useState({
+    name: "",
+    client: "",
+    budget: "",
+    description: ""
+  });
+
+  const handleCreateProject = (e) => {
+    e.preventDefault();
+    // Mock project creation
+    alert(`Project "${newProject.name}" created successfully!`);
+    setNewProject({ name: "", client: "", budget: "", description: "" });
+    setShowCreateModal(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Projects" />
+      <div className="flex">
+        <Sidebar currentPage="Projects" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
+                <p className="text-gray-600 mt-2">
+                  Manage your projects and track their progress.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 flex items-center"
+              >
+                <span className="mr-2">➕</span>
+                New Project
+              </button>
+            </div>
+
+            {/* Projects Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {mockProjects.map((project) => (
+                <div key={project.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      project.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-4">{project.client}</p>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Hours tracked:</span>
+                      <span className="font-medium">{project.hours}h</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Budget:</span>
+                      <span className="font-medium">${project.budget}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Spent:</span>
+                      <span className="font-medium">${project.spent}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full" 
+                      style={{ width: `${(project.spent / project.budget) * 100}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <button className="text-blue-600 hover:text-blue-800 text-sm">View Details</button>
+                    <button className="text-gray-600 hover:text-gray-800 text-sm">Edit</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tasks Section */}
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Tasks</h2>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Task</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignee</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {mockTasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{task.title}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {task.project}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {task.assignee}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              task.status === 'completed' 
+                                ? 'bg-green-100 text-green-800'
+                                : task.status === 'in-progress'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {task.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              task.priority === 'high' 
+                                ? 'bg-red-100 text-red-800'
+                                : task.priority === 'medium'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {task.priority}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Create Project Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Project</h3>
+            <form onSubmit={handleCreateProject}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newProject.name}
+                    onChange={(e) => setNewProject({...newProject, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Client Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newProject.client}
+                    onChange={(e) => setNewProject({...newProject, client: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Budget
+                  </label>
+                  <input
+                    type="number"
+                    value={newProject.budget}
+                    onChange={(e) => setNewProject({...newProject, budget: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newProject.description}
+                    onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Create Project
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ReportsPage Component
+export const ReportsPage = ({ user, onLogout }) => {
+  const [dateRange, setDateRange] = useState("this-week");
+  const [selectedTeamMember, setSelectedTeamMember] = useState("all");
+
+  const reportData = {
+    totalHours: 342,
+    averageDaily: 6.8,
+    productivity: 84,
+    projects: 12,
+    screenshots: 1250,
+    activities: 89
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Reports" />
+      <div className="flex">
+        <Sidebar currentPage="Reports" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
+              <p className="text-gray-600 mt-2">
+                Analyze your team's productivity and time tracking data.
+              </p>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date Range
+                  </label>
+                  <select
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="today">Today</option>
+                    <option value="this-week">This Week</option>
+                    <option value="this-month">This Month</option>
+                    <option value="last-month">Last Month</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Team Member
+                  </label>
+                  <select
+                    value={selectedTeamMember}
+                    onChange={(e) => setSelectedTeamMember(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Members</option>
+                    {mockUsers.map((user) => (
+                      <option key={user.id} value={user.id}>{user.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 w-full">
+                    Generate Report
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Report Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <DashboardWidget 
+                title="Total Hours" 
+                value={`${reportData.totalHours}h`} 
+                subtitle="This week" 
+                icon="⏰" 
+                color="blue" 
+              />
+              <DashboardWidget 
+                title="Average Daily" 
+                value={`${reportData.averageDaily}h`} 
+                subtitle="Per team member" 
+                icon="📊" 
+                color="green" 
+              />
+              <DashboardWidget 
+                title="Productivity" 
+                value={`${reportData.productivity}%`} 
+                subtitle="Team average" 
+                icon="📈" 
+                color="purple" 
+              />
+              <DashboardWidget 
+                title="Active Projects" 
+                value={reportData.projects} 
+                subtitle="Currently running" 
+                icon="📁" 
+                color="orange" 
+              />
+              <DashboardWidget 
+                title="Screenshots" 
+                value={reportData.screenshots} 
+                subtitle="Captured this week" 
+                icon="📸" 
+                color="red" 
+              />
+              <DashboardWidget 
+                title="Activities" 
+                value={`${reportData.activities}%`} 
+                subtitle="Activity level" 
+                icon="⚡" 
+                color="yellow" 
+              />
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Time Tracking Overview</h3>
+                <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <img 
+                      src="https://images.unsplash.com/photo-1660144425546-b07680e711d1?w=400&h=200&fit=crop" 
+                      alt="Chart placeholder" 
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Productivity Trends</h3>
+                <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <img 
+                      src="https://images.unsplash.com/photo-1587401511935-a7f87afadf2f?w=400&h=200&fit=crop" 
+                      alt="Analytics chart" 
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Reports */}
+            <div className="mt-8">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">Detailed Time Report</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {mockUsers.map((user, index) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(Date.now() - index * 86400000).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full mr-3" />
+                              <span className="text-sm font-medium text-gray-900">{user.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {mockProjects[index % mockProjects.length].name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(Math.random() * 8 + 1).toFixed(1)}h
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {Math.floor(Math.random() * 30 + 70)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// SettingsPage Component
+export const SettingsPage = ({ user, onLogout }) => {
+  const [settings, setSettings] = useState({
+    screenshotInterval: 10,
+    activityTracking: true,
+    idleTimeout: 5,
+    notifications: true,
+    timezone: "UTC-5",
+    workingHours: { start: "09:00", end: "17:00" }
+  });
+
+  const handleSave = () => {
+    // Mock save logic
+    alert("Settings saved successfully!");
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Settings" />
+      <div className="flex">
+        <Sidebar currentPage="Settings" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+              <p className="text-gray-600 mt-2">
+                Configure your time tracking and productivity settings.
+              </p>
+            </div>
+
+            {/* Profile Settings */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={user.name}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={user.email}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role
+                  </label>
+                  <input
+                    type="text"
+                    value={user.role}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Time Zone
+                  </label>
+                  <select
+                    value={settings.timezone}
+                    onChange={(e) => setSettings({...settings, timezone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="UTC-5">Eastern Time (UTC-5)</option>
+                    <option value="UTC-6">Central Time (UTC-6)</option>
+                    <option value="UTC-7">Mountain Time (UTC-7)</option>
+                    <option value="UTC-8">Pacific Time (UTC-8)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Time Tracking Settings */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Time Tracking Settings</h3>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Screenshot Interval (minutes)
+                  </label>
+                  <select
+                    value={settings.screenshotInterval}
+                    onChange={(e) => setSettings({...settings, screenshotInterval: parseInt(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={5}>Every 5 minutes</option>
+                    <option value={10}>Every 10 minutes</option>
+                    <option value={15}>Every 15 minutes</option>
+                    <option value={30}>Every 30 minutes</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Idle Timeout (minutes)
+                  </label>
+                  <select
+                    value={settings.idleTimeout}
+                    onChange={(e) => setSettings({...settings, idleTimeout: parseInt(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={3}>3 minutes</option>
+                    <option value={5}>5 minutes</option>
+                    <option value={10}>10 minutes</option>
+                    <option value={15}>15 minutes</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="activityTracking"
+                    checked={settings.activityTracking}
+                    onChange={(e) => setSettings({...settings, activityTracking: e.target.checked})}
+                    className="mr-3"
+                  />
+                  <label htmlFor="activityTracking" className="text-sm font-medium text-gray-700">
+                    Enable activity tracking (mouse and keyboard)
+                  </label>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="notifications"
+                    checked={settings.notifications}
+                    onChange={(e) => setSettings({...settings, notifications: e.target.checked})}
+                    className="mr-3"
+                  />
+                  <label htmlFor="notifications" className="text-sm font-medium text-gray-700">
+                    Enable notifications
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Working Hours */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Working Hours</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={settings.workingHours.start}
+                    onChange={(e) => setSettings({
+                      ...settings, 
+                      workingHours: {...settings.workingHours, start: e.target.value}
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={settings.workingHours.end}
+                    onChange={(e) => setSettings({
+                      ...settings, 
+                      workingHours: {...settings.workingHours, end: e.target.value}
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleSave}
+                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
