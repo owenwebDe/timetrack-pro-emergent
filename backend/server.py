@@ -7,7 +7,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 # Import database connection
-from database.mongodb import connect_to_mongo, close_mongo_connection
+from .database.mongodb import connect_to_mongo, close_mongo_connection
 
 # Import routes
 from routes import auth, users, projects, time_tracking, analytics, integrations, websocket
