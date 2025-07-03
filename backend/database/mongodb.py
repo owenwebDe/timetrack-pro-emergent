@@ -19,7 +19,7 @@ async def connect_to_mongo():
         db.database = db.client[os.environ["DB_NAME"]]
         
         # Test connection
-        await db.database.admin.command('ping')
+        await db.database.command('ping')
         logger.info("Connected to MongoDB successfully")
         
         # Create indexes
