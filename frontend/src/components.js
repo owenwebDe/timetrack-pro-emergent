@@ -1582,14 +1582,53 @@ export const ProjectsPage = ({ user, onLogout }) => {
 export const ReportsPage = ({ user, onLogout }) => {
   const [dateRange, setDateRange] = useState("this-week");
   const [selectedTeamMember, setSelectedTeamMember] = useState("all");
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const reportData = {
-    totalHours: 342,
-    averageDaily: 6.8,
-    productivity: 84,
-    projects: 12,
-    screenshots: 1250,
-    activities: 89
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, [dateRange, selectedTeamMember]);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      const [dashboardResponse, teamResponse, productivityResponse] = await Promise.all([
+        analyticsAPI.getDashboardAnalytics(),
+        analyticsAPI.getTeamAnalytics(),
+        analyticsAPI.getProductivityAnalytics(dateRange === 'this-week' ? 'week' : 'month')
+      ]);
+
+      setAnalyticsData({
+        dashboard: dashboardResponse.data,
+        team: teamResponse.data,
+        productivity: productivityResponse.data
+      });
+    } catch (error) {
+      console.error('Failed to fetch analytics data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={onLogout} currentPage="Reports" />
+        <div className="flex">
+          <Sidebar currentPage="Reports" />
+          <main className="flex-1 ml-64 p-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="spinner"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  const reportData = analyticsData?.dashboard?.user_stats || {
+    total_hours: 0,
+    avg_activity: 0,
+    projects_count: 0
   };
 
   return (
@@ -1636,13 +1675,18 @@ export const ReportsPage = ({ user, onLogout }) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">All Members</option>
-                    {mockUsers.map((user) => (
-                      <option key={user.id} value={user.id}>{user.name}</option>
-                    ))}
+                    {analyticsData?.team?.team_stats?.map((member) => (
+                      <option key={member.user_id} value={member.user_id}>
+                        {member.user_name}
+                      </option>
+                    )) || []}
                   </select>
                 </div>
                 <div className="flex items-end">
-                  <button className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 w-full">
+                  <button 
+                    onClick={fetchAnalyticsData}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 w-full"
+                  >
                     Generate Report
                   </button>
                 </div>
@@ -1653,43 +1697,43 @@ export const ReportsPage = ({ user, onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               <DashboardWidget 
                 title="Total Hours" 
-                value={`${reportData.totalHours}h`} 
-                subtitle="This week" 
+                value={`${Math.round(reportData.total_hours || 0)}h`} 
+                subtitle="This period" 
                 icon="⏰" 
                 color="blue" 
               />
               <DashboardWidget 
                 title="Average Daily" 
-                value={`${reportData.averageDaily}h`} 
-                subtitle="Per team member" 
+                value={`${Math.round((reportData.total_hours || 0) / 7)}h`} 
+                subtitle="Per day" 
                 icon="📊" 
                 color="green" 
               />
               <DashboardWidget 
                 title="Productivity" 
-                value={`${reportData.productivity}%`} 
-                subtitle="Team average" 
+                value={`${Math.round(reportData.avg_activity || 0)}%`} 
+                subtitle="Average activity" 
                 icon="📈" 
                 color="purple" 
               />
               <DashboardWidget 
                 title="Active Projects" 
-                value={reportData.projects} 
+                value={reportData.projects_count || 0} 
                 subtitle="Currently running" 
                 icon="📁" 
                 color="orange" 
               />
               <DashboardWidget 
                 title="Screenshots" 
-                value={reportData.screenshots} 
-                subtitle="Captured this week" 
+                value="1250" 
+                subtitle="Captured this period" 
                 icon="📸" 
                 color="red" 
               />
               <DashboardWidget 
-                title="Activities" 
-                value={`${reportData.activities}%`} 
-                subtitle="Activity level" 
+                title="Activity Score" 
+                value={`${Math.round(analyticsData?.productivity?.productivity_score || 0)}%`} 
+                subtitle="Overall performance" 
                 icon="⚡" 
                 color="yellow" 
               />
@@ -1700,26 +1744,34 @@ export const ReportsPage = ({ user, onLogout }) => {
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Time Tracking Overview</h3>
                 <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <img 
-                      src="https://images.unsplash.com/photo-1660144425546-b07680e711d1?w=400&h=200&fit=crop" 
-                      alt="Chart placeholder" 
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                  </div>
+                  {analyticsData?.productivity?.productivity_chart ? (
+                    <TimeTrackingChart data={analyticsData.productivity.productivity_chart} />
+                  ) : (
+                    <div className="text-center">
+                      <img 
+                        src="https://images.unsplash.com/photo-1660144425546-b07680e711d1?w=400&h=200&fit=crop" 
+                        alt="Chart placeholder" 
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Productivity Trends</h3>
                 <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <img 
-                      src="https://images.unsplash.com/photo-1587401511935-a7f87afadf2f?w=400&h=200&fit=crop" 
-                      alt="Analytics chart" 
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                  </div>
+                  {analyticsData?.dashboard?.productivity_trend ? (
+                    <ProductivityChart data={analyticsData.dashboard.productivity_trend} />
+                  ) : (
+                    <div className="text-center">
+                      <img 
+                        src="https://images.unsplash.com/photo-1587401511935-a7f87afadf2f?w=400&h=200&fit=crop" 
+                        alt="Analytics chart" 
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1742,28 +1794,38 @@ export const ReportsPage = ({ user, onLogout }) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {mockUsers.map((user, index) => (
-                        <tr key={user.id} className="hover:bg-gray-50">
+                      {analyticsData?.team?.team_stats?.map((member, index) => (
+                        <tr key={member.user_id} className="hover:bg-gray-50 table-row">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {new Date(Date.now() - index * 86400000).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full mr-3" />
-                              <span className="text-sm font-medium text-gray-900">{user.name}</span>
+                              <img 
+                                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                                alt={member.user_name} 
+                                className="w-8 h-8 rounded-full mr-3" 
+                              />
+                              <span className="text-sm font-medium text-gray-900">{member.user_name}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {mockProjects[index % mockProjects.length].name}
+                            Project {index + 1}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {(Math.random() * 8 + 1).toFixed(1)}h
+                            {Math.round(member.total_hours)}h
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {Math.floor(Math.random() * 30 + 70)}%
+                            {Math.round(member.avg_activity)}%
                           </td>
                         </tr>
-                      ))}
+                      )) || (
+                        <tr>
+                          <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                            No data available
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1772,6 +1834,241 @@ export const ReportsPage = ({ user, onLogout }) => {
           </div>
         </main>
       </div>
+    </div>
+  );
+};
+
+// IntegrationsPage Component
+export const IntegrationsPage = ({ user, onLogout }) => {
+  const [integrations, setIntegrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [connectionData, setConnectionData] = useState({});
+
+  useEffect(() => {
+    fetchIntegrations();
+  }, []);
+
+  const fetchIntegrations = async () => {
+    try {
+      const response = await integrationsAPI.getIntegrations();
+      setIntegrations(response.data.integrations || []);
+    } catch (error) {
+      console.error('Failed to fetch integrations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnect = async (type) => {
+    try {
+      let response;
+      switch (type) {
+        case 'slack':
+          response = await integrationsAPI.connectSlack(connectionData.webhook_url);
+          break;
+        case 'trello':
+          response = await integrationsAPI.connectTrello(connectionData.api_key, connectionData.token);
+          break;
+        case 'github':
+          response = await integrationsAPI.connectGitHub(connectionData.token);
+          break;
+        default:
+          throw new Error('Unknown integration type');
+      }
+      
+      alert(`${type.charAt(0).toUpperCase() + type.slice(1)} connected successfully!`);
+      setShowConnectModal(false);
+      setConnectionData({});
+      fetchIntegrations();
+    } catch (error) {
+      console.error(`Failed to connect ${type}:`, error);
+      alert(`Failed to connect ${type}. Please check your credentials.`);
+    }
+  };
+
+  const availableIntegrations = [
+    {
+      name: 'Slack',
+      type: 'slack',
+      icon: '💬',
+      description: 'Send notifications and updates to Slack channels',
+      fields: [
+        { name: 'webhook_url', label: 'Webhook URL', type: 'url', placeholder: 'https://hooks.slack.com/...' }
+      ]
+    },
+    {
+      name: 'Trello',
+      type: 'trello',
+      icon: '📋',
+      description: 'Create cards and sync with Trello boards',
+      fields: [
+        { name: 'api_key', label: 'API Key', type: 'text', placeholder: 'Your Trello API Key' },
+        { name: 'token', label: 'Token', type: 'text', placeholder: 'Your Trello Token' }
+      ]
+    },
+    {
+      name: 'GitHub',
+      type: 'github',
+      icon: '💻',
+      description: 'Create issues and sync with repositories',
+      fields: [
+        { name: 'token', label: 'Personal Access Token', type: 'password', placeholder: 'ghp_...' }
+      ]
+    }
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={onLogout} currentPage="Integrations" />
+        <div className="flex">
+          <Sidebar currentPage="Integrations" />
+          <main className="flex-1 ml-64 p-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="spinner"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header user={user} onLogout={onLogout} currentPage="Integrations" />
+      <div className="flex">
+        <Sidebar currentPage="Integrations" />
+        
+        <main className="flex-1 ml-64 p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
+              <p className="text-gray-600 mt-2">
+                Connect your favorite tools to streamline your workflow.
+              </p>
+            </div>
+
+            {/* Connected Integrations */}
+            {integrations.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Connected Integrations</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {integrations.map((integration) => (
+                    <div key={integration.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center">
+                          <span className="text-2xl mr-3">
+                            {integration.type === 'slack' ? '💬' : integration.type === 'trello' ? '📋' : '💻'}
+                          </span>
+                          <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                            {integration.type}
+                          </h3>
+                        </div>
+                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                          Connected
+                        </span>
+                      </div>
+                      <p className="text-gray-600 mb-4">
+                        Connected on {format(new Date(integration.created_at), 'PPP')}
+                      </p>
+                      <button
+                        onClick={() => integrationsAPI.disconnectIntegration(integration.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Available Integrations */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Integrations</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {availableIntegrations.map((integration) => {
+                  const isConnected = integrations.some(i => i.type === integration.type);
+                  return (
+                    <div key={integration.type} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 feature-card">
+                      <div className="flex items-center mb-4">
+                        <span className="text-2xl mr-3">{integration.icon}</span>
+                        <h3 className="text-lg font-semibold text-gray-900">{integration.name}</h3>
+                      </div>
+                      <p className="text-gray-600 mb-4">{integration.description}</p>
+                      <button
+                        onClick={() => {
+                          if (!isConnected) {
+                            setSelectedIntegration(integration);
+                            setShowConnectModal(true);
+                          }
+                        }}
+                        disabled={isConnected}
+                        className={`w-full py-2 px-4 rounded-md text-sm font-medium ${
+                          isConnected
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {isConnected ? 'Connected' : 'Connect'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Connect Modal */}
+      {showConnectModal && selectedIntegration && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-backdrop">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Connect {selectedIntegration.name}
+            </h3>
+            <div className="space-y-4">
+              {selectedIntegration.fields.map((field) => (
+                <div key={field.name}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {field.label}
+                  </label>
+                  <input
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    value={connectionData[field.name] || ''}
+                    onChange={(e) => setConnectionData({
+                      ...connectionData,
+                      [field.name]: e.target.value
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowConnectModal(false);
+                  setConnectionData({});
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleConnect(selectedIntegration.type)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+              >
+                Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1786,10 +2083,41 @@ export const SettingsPage = ({ user, onLogout }) => {
     timezone: "UTC-5",
     workingHours: { start: "09:00", end: "17:00" }
   });
+  const [userProfile, setUserProfile] = useState(user);
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
-    // Mock save logic
-    alert("Settings saved successfully!");
+  useEffect(() => {
+    // Initialize settings from user data
+    if (user.settings) {
+      setSettings({
+        ...settings,
+        ...user.settings
+      });
+    }
+    if (user.working_hours) {
+      setSettings(prev => ({
+        ...prev,
+        workingHours: user.working_hours
+      }));
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await usersAPI.updateCurrentUser({
+        ...userProfile,
+        settings,
+        working_hours: settings.workingHours,
+        timezone: settings.timezone
+      });
+      alert("Settings saved successfully!");
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert("Failed to save settings. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1817,7 +2145,8 @@ export const SettingsPage = ({ user, onLogout }) => {
                   </label>
                   <input
                     type="text"
-                    value={user.name}
+                    value={userProfile.name}
+                    onChange={(e) => setUserProfile({...userProfile, name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1827,7 +2156,8 @@ export const SettingsPage = ({ user, onLogout }) => {
                   </label>
                   <input
                     type="email"
-                    value={user.email}
+                    value={userProfile.email}
+                    onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1837,7 +2167,7 @@ export const SettingsPage = ({ user, onLogout }) => {
                   </label>
                   <input
                     type="text"
-                    value={user.role}
+                    value={userProfile.role}
                     disabled
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
                   />
@@ -1963,9 +2293,10 @@ export const SettingsPage = ({ user, onLogout }) => {
             <div className="flex justify-end">
               <button
                 onClick={handleSave}
-                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                disabled={loading}
+                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
-                Save Settings
+                {loading ? "Saving..." : "Save Settings"}
               </button>
             </div>
           </div>
