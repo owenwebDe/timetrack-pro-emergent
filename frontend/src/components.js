@@ -1071,14 +1071,66 @@ export const TimeTrackingPage = ({ user, onLogout }) => {
 export const TeamManagementPage = ({ user, onLogout }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [teamData, setTeamData] = useState({
+    members: [],
+    stats: {
+      total_users: 0,
+      active_users: 0,
+      users_by_role: {}
+    }
+  });
+  const [loading, setLoading] = useState(true);
 
-  const handleInviteUser = (e) => {
-    e.preventDefault();
-    // Mock invitation logic
-    alert(`Invitation sent to ${inviteEmail}`);
-    setInviteEmail("");
-    setShowInviteModal(false);
+  useEffect(() => {
+    fetchTeamData();
+  }, []);
+
+  const fetchTeamData = async () => {
+    try {
+      const [usersResponse, statsResponse] = await Promise.all([
+        usersAPI.getUsers(),
+        usersAPI.getTeamStats()
+      ]);
+      
+      setTeamData({
+        members: usersResponse.data,
+        stats: statsResponse.data
+      });
+    } catch (error) {
+      console.error('Failed to fetch team data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleInviteUser = async (e) => {
+    e.preventDefault();
+    try {
+      // Mock invitation logic - in real app would call invitation API
+      alert(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setShowInviteModal(false);
+      fetchTeamData(); // Refresh data
+    } catch (error) {
+      console.error('Failed to send invitation:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={onLogout} currentPage="Team" />
+        <div className="flex">
+          <Sidebar currentPage="Team" />
+          <main className="flex-1 ml-64 p-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="spinner"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1106,9 +1158,27 @@ export const TeamManagementPage = ({ user, onLogout }) => {
 
             {/* Team Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <DashboardWidget title="Team Members" value="4" subtitle="Active users" icon="👥" color="blue" />
-              <DashboardWidget title="Online Now" value="2" subtitle="Currently active" icon="🟢" color="green" />
-              <DashboardWidget title="Total Hours" value="342" subtitle="This week" icon="⏰" color="purple" />
+              <DashboardWidget 
+                title="Team Members" 
+                value={teamData.stats.total_users} 
+                subtitle="Active users" 
+                icon="👥" 
+                color="blue" 
+              />
+              <DashboardWidget 
+                title="Online Now" 
+                value={teamData.stats.active_users} 
+                subtitle="Currently active" 
+                icon="🟢" 
+                color="green" 
+              />
+              <DashboardWidget 
+                title="Total Hours" 
+                value="342" 
+                subtitle="This week" 
+                icon="⏰" 
+                color="purple" 
+              />
             </div>
 
             {/* Team Members List */}
@@ -1128,11 +1198,15 @@ export const TeamManagementPage = ({ user, onLogout }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {mockUsers.map((member) => (
-                      <tr key={member.id} className="hover:bg-gray-50">
+                    {teamData.members.map((member) => (
+                      <tr key={member.id} className="hover:bg-gray-50 table-row">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <img src={member.avatar} alt={member.name} className="w-10 h-10 rounded-full mr-3" />
+                            <img 
+                              src={member.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"} 
+                              alt={member.name} 
+                              className="w-10 h-10 rounded-full mr-3" 
+                            />
                             <div>
                               <div className="text-sm font-medium text-gray-900">{member.name}</div>
                               <div className="text-sm text-gray-500">{member.email}</div>
@@ -1178,7 +1252,7 @@ export const TeamManagementPage = ({ user, onLogout }) => {
 
       {/* Invite Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-backdrop">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h3>
             <form onSubmit={handleInviteUser}>
@@ -1220,6 +1294,9 @@ export const TeamManagementPage = ({ user, onLogout }) => {
 // ProjectsPage Component
 export const ProjectsPage = ({ user, onLogout }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newProject, setNewProject] = useState({
     name: "",
     client: "",
@@ -1227,13 +1304,62 @@ export const ProjectsPage = ({ user, onLogout }) => {
     description: ""
   });
 
-  const handleCreateProject = (e) => {
-    e.preventDefault();
-    // Mock project creation
-    alert(`Project "${newProject.name}" created successfully!`);
-    setNewProject({ name: "", client: "", budget: "", description: "" });
-    setShowCreateModal(false);
+  useEffect(() => {
+    fetchProjectData();
+  }, []);
+
+  const fetchProjectData = async () => {
+    try {
+      const [projectsResponse, statsResponse] = await Promise.all([
+        projectsAPI.getProjects(),
+        projectsAPI.getProjectStats()
+      ]);
+      
+      setProjects(projectsResponse.data);
+      // Also fetch some tasks for display
+      if (projectsResponse.data.length > 0) {
+        const tasksPromises = projectsResponse.data.slice(0, 3).map(project => 
+          projectsAPI.getProjectTasks(project.id).catch(() => ({ data: [] }))
+        );
+        const tasksResponses = await Promise.all(tasksPromises);
+        const allTasks = tasksResponses.flatMap(response => response.data);
+        setTasks(allTasks);
+      }
+    } catch (error) {
+      console.error('Failed to fetch project data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    try {
+      await projectsAPI.createProject(newProject);
+      alert(`Project "${newProject.name}" created successfully!`);
+      setNewProject({ name: "", client: "", budget: "", description: "" });
+      setShowCreateModal(false);
+      fetchProjectData(); // Refresh data
+    } catch (error) {
+      console.error('Failed to create project:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={onLogout} currentPage="Projects" />
+        <div className="flex">
+          <Sidebar currentPage="Projects" />
+          <main className="flex-1 ml-64 p-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="spinner"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1261,8 +1387,8 @@ export const ProjectsPage = ({ user, onLogout }) => {
 
             {/* Projects Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockProjects.map((project) => (
-                <div key={project.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+              {projects.map((project) => (
+                <div key={project.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 feature-card">
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
                     <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1278,7 +1404,7 @@ export const ProjectsPage = ({ user, onLogout }) => {
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Hours tracked:</span>
-                      <span className="font-medium">{project.hours}h</span>
+                      <span className="font-medium">{project.hours_tracked || 0}h</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Budget:</span>
@@ -1286,14 +1412,17 @@ export const ProjectsPage = ({ user, onLogout }) => {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Spent:</span>
-                      <span className="font-medium">${project.spent}</span>
+                      <span className="font-medium">${project.spent || 0}</span>
                     </div>
                   </div>
                   
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-4 progress-bar">
                     <div 
                       className="bg-blue-600 h-2 rounded-full" 
-                      style={{ width: `${(project.spent / project.budget) * 100}%` }}
+                      style={{ 
+                        width: `${Math.min(((project.spent || 0) / project.budget) * 100, 100)}%`,
+                        '--progress-width': `${Math.min(((project.spent || 0) / project.budget) * 100, 100)}%`
+                      }}
                     ></div>
                   </div>
                   
@@ -1321,16 +1450,16 @@ export const ProjectsPage = ({ user, onLogout }) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {mockTasks.map((task) => (
-                        <tr key={task.id} className="hover:bg-gray-50">
+                      {tasks.length > 0 ? tasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-gray-50 table-row">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">{task.title}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {task.project}
+                            {projects.find(p => p.id === task.project_id)?.name || 'Unknown Project'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {task.assignee}
+                            {task.assignee_id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1355,7 +1484,13 @@ export const ProjectsPage = ({ user, onLogout }) => {
                             </span>
                           </td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                            No tasks found
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1367,7 +1502,7 @@ export const ProjectsPage = ({ user, onLogout }) => {
 
       {/* Create Project Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-backdrop">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Project</h3>
             <form onSubmit={handleCreateProject}>
