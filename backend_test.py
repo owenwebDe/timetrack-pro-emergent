@@ -110,7 +110,7 @@ class HubstaffAPITest(unittest.TestCase):
     def test_01_health_check(self):
         """Test health check endpoint"""
         try:
-            response = requests.get(f"{BASE_URL}/health")
+            response = requests.get(f"{LOCAL_URL}/health")
             print(f"Health check response: {response.status_code}, {response.text}")
             self.assertEqual(response.status_code, 200)
             data = response.json()
