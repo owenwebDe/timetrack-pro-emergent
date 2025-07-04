@@ -288,8 +288,8 @@ yarn start
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8001
-- **API Documentation**: http://localhost:8001/docs
-- **Health Check**: http://localhost:8001/health
+- **API Documentation**: http://localhost:8001/api
+- **Health Check**: http://localhost:8001/api/health
 
 ## 📚 API Documentation
 
