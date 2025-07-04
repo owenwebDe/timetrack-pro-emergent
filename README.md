@@ -200,35 +200,39 @@ sudo systemctl enable mongod
 
 ### 4. Backend Setup
 
-#### Install Python Dependencies
+#### Install Node.js Dependencies
 
 ```bash
 cd backend
 
-# Create virtual environment (recommended)
-python -m venv venv
+# Install dependencies (using yarn - recommended)
+yarn install
 
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Or using npm
+npm install
 ```
 
-#### Initialize Database
+#### Environment Configuration
 
-The application will automatically create indexes and collections on first run, but you can manually initialize:
+The backend environment variables are automatically configured for local development, but you can customize them in `/backend/.env`:
 
-```bash
-# Optional: Run database initialization script
-python -c "
-import asyncio
-from database.mongodb import connect_to_mongo, create_indexes
-asyncio.run(connect_to_mongo())
-"
+```env
+# Database Configuration
+MONGO_URL=mongodb://localhost:27017/hubstaff
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRE=7d
+
+# Server Configuration
+NODE_ENV=development
+PORT=8001
+
+# Security
+BCRYPT_ROUNDS=12
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX=100
+
+# File Upload
+MAX_FILE_SIZE=50mb
 ```
 
 ### 5. Frontend Setup
