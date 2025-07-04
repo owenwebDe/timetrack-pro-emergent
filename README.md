@@ -392,13 +392,12 @@ app.use(cors({
 cd backend
 
 # Run all tests
-python -m pytest
+npm test
+# Or: yarn test
 
-# Run specific test file
-python -m pytest tests/test_auth.py
-
-# Run with coverage
-python -m pytest --cov=. --cov-report=html
+# Run tests with coverage
+npm test -- --coverage
+# Or: yarn test --coverage
 ```
 
 ### Frontend Testing
