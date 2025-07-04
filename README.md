@@ -293,11 +293,17 @@ yarn start
 
 ## 📚 API Documentation
 
-The application includes comprehensive API documentation:
+The application includes a comprehensive REST API with the following features:
 
-- **Swagger UI**: http://localhost:8001/docs
-- **ReDoc**: http://localhost:8001/redoc
-- **OpenAPI Schema**: http://localhost:8001/openapi.json
+- **RESTful Design**: Standard HTTP methods and status codes
+- **JSON Responses**: All responses are in JSON format
+- **JWT Authentication**: Bearer token authentication
+- **Error Handling**: Consistent error response format
+- **Rate Limiting**: Protection against abuse
+
+### API Base URL
+- **Development**: http://localhost:8001/api
+- **Production**: Your production domain + /api
 
 ### Key API Endpoints
 
