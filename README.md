@@ -632,7 +632,7 @@ sudo supervisorctl restart all
 sudo supervisorctl stop all
 
 # Manual start (development)
-cd backend && uvicorn server:app --reload
+cd backend && node server.js
 cd frontend && yarn start
 ```
 
