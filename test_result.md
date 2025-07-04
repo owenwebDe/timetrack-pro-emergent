@@ -155,11 +155,11 @@ backend:
 
   - task: "Task Management Testing"
     implemented: true
-    working: false
-    file: "/app/backend/routes/projects.py"
-    stuck_count: 1
+    working: true
+    file: "/app/backend/routes/projects.js"
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
@@ -167,6 +167,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "Task management endpoints (/api/projects/{id}/tasks) are not working correctly. Creating and getting tasks functionality is failing."
+      - working: true
+        agent: "testing"
+        comment: "Task management endpoints are now working correctly in the Node.js implementation. Creating tasks and getting tasks for a project are functioning as expected."
 
   - task: "Time Tracking Testing"
     implemented: true
