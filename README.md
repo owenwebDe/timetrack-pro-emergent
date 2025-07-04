@@ -506,7 +506,7 @@ docker-compose up -d
 lsof -ti:8001 | xargs kill -9
 
 # Or use different port
-uvicorn server:app --port 8002
+node server.js # and update PORT in .env
 ```
 
 #### 3. Module Import Errors
