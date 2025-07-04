@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Please test the Hubstaff clone frontend application I just built."
+user_problem_statement: "Convert the entire backend from Python/FastAPI to Node.js/Express while maintaining all existing functionality. Update README.md to reflect the new Node.js backend setup."
 
 backend:
   - task: "Authentication Testing"
