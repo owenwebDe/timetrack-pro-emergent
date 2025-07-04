@@ -59,12 +59,13 @@ A comprehensive full-stack web application that replicates all core features of 
 ## 🛠️ Tech Stack
 
 ### **Backend**
-- **FastAPI** - High-performance Python web framework
-- **MongoDB** - NoSQL database with Motor async driver
+- **Node.js** - JavaScript runtime environment
+- **Express.js** - Fast, unopinionated web framework
+- **MongoDB** - NoSQL database with Mongoose ODM
 - **JWT** - Secure authentication tokens
-- **WebSocket** - Real-time communication
-- **Pydantic** - Data validation and serialization
+- **Socket.IO** - Real-time bidirectional communication
 - **Bcrypt** - Password hashing
+- **Winston** - Advanced logging
 
 ### **Frontend**
 - **React 19** - Modern React with hooks
