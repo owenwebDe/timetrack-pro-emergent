@@ -132,7 +132,7 @@ RATE_LIMIT_MAX=100
 Create the frontend environment file:
 
 ```bash
-cd ../frontend
+cd frontend
 cp .env.example .env
 ```
 
