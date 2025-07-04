@@ -84,7 +84,6 @@ A comprehensive full-stack web application that replicates all core features of 
 
 Before starting, ensure you have the following installed:
 
-- **Python 3.8+** with pip
 - **Node.js 16+** with npm/yarn
 - **MongoDB 4.4+** (local installation or MongoDB Atlas)
 - **Git** for cloning the repository
