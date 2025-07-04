@@ -355,9 +355,7 @@ metadata:
 test_plan:
   current_focus:
     - "Backend Migration to Node.js"
-  stuck_tasks:
-    - "Task Management Testing"
-    - "Time Tracking Testing"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
