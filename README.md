@@ -77,7 +77,7 @@ A comprehensive full-stack web application that replicates all core features of 
 
 ### **Database**
 - **MongoDB** - Primary database
-- **Motor** - Async MongoDB driver
+- **Mongoose** - Object modeling for Node.js
 - **Aggregation Pipelines** - Complex analytics queries
 
 ## 📋 Prerequisites
