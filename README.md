@@ -106,31 +106,25 @@ cd hubstaff-clone
 
 #### Backend Environment Variables
 
-Create the backend environment file:
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Edit `/backend/.env` with your configuration:
+The backend automatically loads environment variables from `/backend/.env`:
 
 ```env
 # Database Configuration
-MONGO_URL="mongodb://localhost:27017"
-DB_NAME="hubstaff_clone"
+MONGO_URL=mongodb://localhost:27017/hubstaff
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRE=7d
 
-# Security Configuration
-SECRET_KEY="your-super-secret-key-change-in-production-hubstaff-clone-2025"
+# Server Configuration
+NODE_ENV=development
+PORT=8001
+
+# Security
+BCRYPT_ROUNDS=12
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX=100
 
 # Optional: MongoDB Atlas (if using cloud database)
-# MONGO_URL="mongodb+srv://username:password@cluster.mongodb.net/"
-
-# Optional: Redis (for caching - if implemented)
-# REDIS_URL="redis://localhost:6379"
-
-# Environment
-ENVIRONMENT="development"
+# MONGO_URL="mongodb+srv://username:password@cluster.mongodb.net/hubstaff"
 ```
 
 #### Frontend Environment Variables
