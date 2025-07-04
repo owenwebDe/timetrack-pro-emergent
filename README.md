@@ -515,11 +515,8 @@ node server.js # and update PORT in .env
 
 **Solutions**:
 ```bash
-# Ensure virtual environment is activated
-source venv/bin/activate
-
-# Reinstall dependencies
-pip install -r requirements.txt
+# Ensure dependencies are installed
+cd backend && yarn install
 
 # For frontend
 cd frontend && yarn install
