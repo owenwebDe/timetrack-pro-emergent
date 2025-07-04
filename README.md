@@ -418,7 +418,7 @@ yarn test --coverage
 Use the provided test script:
 
 ```bash
-cd backend
+# Run comprehensive backend API tests
 python backend_test.py
 ```
 
