@@ -1,1 +1,0 @@
-# Authentication module for Hubstaff Clone API
