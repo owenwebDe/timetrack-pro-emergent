@@ -272,8 +272,9 @@ sudo supervisorctl tail -f backend
 **Terminal 1 - Backend:**
 ```bash
 cd backend
-source venv/bin/activate  # if using virtual environment
-uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+node server.js
+# Or for development with auto-restart:
+yarn dev
 ```
 
 **Terminal 2 - Frontend:**
