@@ -375,16 +375,13 @@ SECRET_KEY="$(openssl rand -hex 32)"
 
 ### CORS Configuration
 
-For production, update CORS settings in `/backend/server.py`:
+For production, update CORS settings in `/backend/server.js`:
 
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["https://yourdomain.com"],  # Update for production
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
-)
+```javascript
+app.use(cors({
+  origin: ["https://yourdomain.com"], // Update for production
+  credentials: true
+}));
 ```
 
 ## 🧪 Testing
