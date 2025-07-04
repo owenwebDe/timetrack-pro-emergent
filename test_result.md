@@ -173,11 +173,11 @@ backend:
 
   - task: "Time Tracking Testing"
     implemented: true
-    working: false
-    file: "/app/backend/routes/time_tracking.py"
-    stuck_count: 1
+    working: true
+    file: "/app/backend/routes/time-tracking.js"
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
@@ -185,6 +185,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "Time tracking endpoints (/api/time-tracking/start, /api/time-tracking/stop, /api/time-tracking/active, /api/time-tracking/entries, /api/time-tracking/manual) are not working correctly. Starting, stopping, and getting time entries functionality is failing."
+      - working: true
+        agent: "testing"
+        comment: "Time tracking endpoints are now working correctly in the Node.js implementation. Starting time tracking, stopping time tracking, getting active time entries, and creating manual time entries are all functioning as expected."
 
   - task: "Analytics Testing"
     implemented: true
