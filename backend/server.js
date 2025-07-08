@@ -1,3 +1,4 @@
+// backend/server.js
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -20,6 +21,7 @@ const timeTrackingRoutes = require("./routes/time-tracking");
 const analyticsRoutes = require("./routes/analytics");
 const integrationRoutes = require("./routes/integrations");
 const websocketRoutes = require("./routes/websocket");
+const invitationRoutes = require("./routes/invitations");
 
 // Create Express app
 const app = express();
@@ -62,12 +64,36 @@ const logger = winston.createLogger({
   ],
 });
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-});
+// Enhanced rate limiting with different rules for different endpoints
+const createRateLimit = (windowMs, max, message) => {
+  return rateLimit({
+    windowMs,
+    max,
+    message: { error: message },
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      logger.warn(`Rate limit exceeded for ${req.ip} on ${req.path}`);
+      res.status(429).json({
+        error: message,
+        retryAfter: Math.ceil(windowMs / 1000),
+      });
+    },
+  });
+};
+
+// Different rate limits for different endpoint types
+const authLimiter = createRateLimit(
+  15 * 60 * 1000, // 15 minutes
+  5, // 5 auth attempts per 15 minutes
+  "Too many authentication attempts, please try again later"
+);
+
+const generalLimiter = createRateLimit(
+  1 * 60 * 1000, // 1 minute
+  100, // 100 requests per minute (increased from 100)
+  "Too many requests, please try again later"
+);
 
 // Middleware
 app.use(
@@ -77,9 +103,8 @@ app.use(
 );
 app.use(compression());
 app.use(morgan("combined"));
-app.use(limiter);
 
-// CORS configuration
+// CORS configuration - APPLY BEFORE RATE LIMITING
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -99,7 +124,7 @@ app.use(
   })
 );
 
-// Handle preflight requests
+// Handle preflight requests BEFORE rate limiting
 app.options("*", (req, res) => {
   const origin = req.get("origin");
   if (allowedOrigins.includes(origin) || !origin) {
@@ -118,6 +143,10 @@ app.options("*", (req, res) => {
     res.sendStatus(403);
   }
 });
+
+// Apply rate limiting AFTER CORS
+app.use("/api/auth", authLimiter);
+app.use("/api", generalLimiter);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -252,7 +281,9 @@ app.use("/api/time-tracking", timeTrackingRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/websocket", websocketRoutes);
-
+app.use("/api/invitations", invitationRoutes);
+// Add after app.use("/api/invitations", invitationRoutes);
+console.log("Invitation routes loaded successfully");
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({
@@ -281,6 +312,7 @@ app.get("/", (req, res) => {
       analytics: "/api/analytics",
       integrations: "/api/integrations",
       websocket: "/api/websocket",
+      invitations: "/api/invitations",
       health: "/api/health",
     },
   });
