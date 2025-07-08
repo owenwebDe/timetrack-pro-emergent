@@ -4232,3 +4232,51 @@
 {"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T08:28:34.485Z"}
 {"level":"info","message":"GET /api/users","origin":"http://localhost:3000","timestamp":"2025-07-08T08:29:39.224Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
 {"level":"info","message":"GET /api/analytics/dashboard","origin":"http://localhost:3000","timestamp":"2025-07-08T08:29:39.229Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:20.620Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/users","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:20.843Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/analytics/dashboard","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:20.849Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/organizations/current","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:20.857Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"warn","message":"404 - Route not found: GET /api/organizations/current","timestamp":"2025-07-08T08:34:20.859Z"}
+{"level":"info","message":"GET /api/invitations","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:20.863Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/organizations/stats","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:20.869Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"warn","message":"404 - Route not found: GET /api/organizations/stats","timestamp":"2025-07-08T08:34:20.874Z"}
+{"level":"info","message":"GET /api/projects/102a780e-26b0-45ed-993b-0345516bd9ea/tasks","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:22.256Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects/55b753c4-740b-4518-946e-878c5c9357f0/tasks","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:22.268Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects/4c1a6e97-61b4-4d43-908f-289bb164ba45/tasks","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:22.279Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.123Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/organizations/current","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.152Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"warn","message":"404 - Route not found: GET /api/organizations/current","timestamp":"2025-07-08T08:34:51.155Z"}
+{"level":"info","message":"GET /api/invitations","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.166Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/organizations/stats","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.174Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"warn","message":"404 - Route not found: GET /api/organizations/stats","timestamp":"2025-07-08T08:34:51.175Z"}
+{"level":"info","message":"GET /api/users","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.184Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/analytics/dashboard","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.287Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects/55b753c4-740b-4518-946e-878c5c9357f0/tasks","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.815Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects/4c1a6e97-61b4-4d43-908f-289bb164ba45/tasks","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.831Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/projects/102a780e-26b0-45ed-993b-0345516bd9ea/tasks","origin":"http://localhost:3000","timestamp":"2025-07-08T08:34:51.842Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/time-tracking/active","origin":"http://localhost:3000","timestamp":"2025-07-08T08:35:04.040Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"GET /api/time-tracking/entries","origin":"http://localhost:3000","timestamp":"2025-07-08T08:35:04.058Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T08:47:48.371Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T08:48:10.085Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T08:48:10.085Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T08:48:10.088Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T08:48:40.354Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T08:48:40.354Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T09:01:24.093Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T09:03:00.285Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T09:03:00.287Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T09:07:56.472Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T09:08:07.003Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T09:08:07.008Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T09:31:51.503Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T09:32:02.451Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T09:32:02.452Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T09:32:36.287Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T09:32:47.505Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T09:32:47.506Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T09:36:00.721Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T09:36:16.363Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T09:36:16.364Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB Atlas","timestamp":"2025-07-08T09:38:49.458Z"}
+{"level":"info","message":"Mongoose connected to MongoDB Atlas","timestamp":"2025-07-08T09:39:00.100Z"}
+{"level":"info","message":"Mongoose reconnected to MongoDB Atlas","timestamp":"2025-07-08T09:39:00.100Z"}
