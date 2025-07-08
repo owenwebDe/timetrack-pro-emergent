@@ -58,7 +58,7 @@ Backend started with PID: 282
 Frontend started with PID: 331
 
 🎉 Hubstaff Clone is starting up!
-📱 Frontend: http://localhost:3000
+📱 Frontend: https://icon-time-tracker.vercel.app
 🔧 Backend API: https://icon-time-tracker.onrender.com
 📚 API Docs: https://icon-time-tracker.onrender.com/docs
 

@@ -43,7 +43,7 @@ echo "Frontend started with PID: $FRONTEND_PID"
 
 echo ""
 echo "🎉 Hubstaff Clone is starting up!"
-echo "📱 Frontend: http://localhost:3000"
+echo "📱 Frontend: https://icon-time-tracker.vercel.app"
 echo "🔧 Backend API: https://icon-time-tracker.onrender.com"
 echo "📚 API Docs: https://icon-time-tracker.onrender.com/docs"
 echo ""

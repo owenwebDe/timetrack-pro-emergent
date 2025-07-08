@@ -29,7 +29,7 @@ const server = http.createServer(app);
 
 // Configure allowed origins
 const allowedOrigins = [
-  "http://localhost:3000",
+  "https://icon-time-tracker.vercel.app",
   "http://127.0.0.1:3000",
   "http://172.20.10.7:3000",
   process.env.FRONTEND_URL,

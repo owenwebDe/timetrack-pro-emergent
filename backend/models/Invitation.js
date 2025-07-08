@@ -199,7 +199,8 @@ invitationSchema.virtual("hoursUntilExpiry").get(function () {
 
 // Virtual for invitation URL
 invitationSchema.virtual("invitationUrl").get(function () {
-  const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl =
+    process.env.FRONTEND_URL || "https://icon-time-tracker.vercel.app";
   return `${baseUrl}/accept-invitation?token=${this.token}`;
 });
 

@@ -296,7 +296,7 @@ yarn start
 
 ### 7. Access the Application
 
-- **Frontend**: http://localhost:3000
+- **Frontend**: https://icon-time-tracker.vercel.app
 - **Backend API**: https://icon-time-tracker.onrender.com
 - **API Documentation**: https://icon-time-tracker.onrender.com/api
 - **Health Check**: https://icon-time-tracker.onrender.com/api/health
