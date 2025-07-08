@@ -32,7 +32,7 @@ print_error() {
 
 # Check if backend is running
 print_status "Checking if backend is running..."
-if curl -s http://localhost:8001/health > /dev/null; then
+if curl -s https://icon-time-tracker.onrender.com/health > /dev/null; then
     print_success "Backend is running"
     BACKEND_RUNNING=true
 else
@@ -46,7 +46,7 @@ else
     # Wait for backend to start
     echo "Waiting for backend to start..."
     for i in {1..30}; do
-        if curl -s http://localhost:8001/health > /dev/null; then
+        if curl -s https://icon-time-tracker.onrender.com/health > /dev/null; then
             print_success "Backend started successfully"
             break
         fi
@@ -100,7 +100,7 @@ cd ..
 print_status "Running health checks..."
 
 # Test backend health
-if curl -s http://localhost:8001/health | grep -q "healthy"; then
+if curl -s https://icon-time-tracker.onrender.com/health | grep -q "healthy"; then
     print_success "Backend health check passed"
 else
     print_error "Backend health check failed"
@@ -110,14 +110,14 @@ fi
 print_status "Testing critical API endpoints..."
 
 # Test root endpoint
-if curl -s http://localhost:8001/api | grep -q "message"; then
+if curl -s https://icon-time-tracker.onrender.com/api | grep -q "message"; then
     print_success "API root endpoint working"
 else
     print_error "API root endpoint failed"
 fi
 
 # Test API documentation
-if curl -s http://localhost:8001/docs | grep -q "swagger"; then
+if curl -s https://icon-time-tracker.onrender.com/docs | grep -q "swagger"; then
     print_success "API documentation accessible"
 else
     print_warning "API documentation may not be accessible"
@@ -169,7 +169,7 @@ cd ..
 print_status "Running basic performance tests..."
 
 # Test API response time
-RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}\n' http://localhost:8001/health)
+RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}\n' https://icon-time-tracker.onrender.com/health)
 if (( $(echo "$RESPONSE_TIME < 1.0" | bc -l) )); then
     print_success "API response time: ${RESPONSE_TIME}s (Good)"
 else

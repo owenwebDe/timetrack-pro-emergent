@@ -59,8 +59,8 @@ Frontend started with PID: 331
 
 🎉 Hubstaff Clone is starting up!
 📱 Frontend: http://localhost:3000
-🔧 Backend API: http://localhost:8001
-📚 API Docs: http://localhost:8001/docs
+🔧 Backend API: https://icon-time-tracker.onrender.com
+📚 API Docs: https://icon-time-tracker.onrender.com/docs
 
 Press Ctrl+C to stop all services
 yarn run v1.22.22

@@ -282,7 +282,8 @@ export const LoginPage = ({ onLogin }) => {
           <div className="mt-4 p-3 bg-black/20 rounded-lg border border-white/10">
             <p className="text-blue-200 text-xs">
               API:{" "}
-              {process.env.REACT_APP_BACKEND_URL || "http://localhost:8001"}
+              {process.env.REACT_APP_BACKEND_URL ||
+                "https://icon-time-tracker.onrender.com"}
             </p>
             <p className="text-blue-200 text-xs">Retries: {retryCount}/3</p>
           </div>

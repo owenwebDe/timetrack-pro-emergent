@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
 const BACKEND_URL =
-  process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
+  process.env.REACT_APP_BACKEND_URL || "https://icon-time-tracker.onrender.com";
 
 export const useWebSocket = (user) => {
   const [isConnected, setIsConnected] = useState(false);

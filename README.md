@@ -7,12 +7,14 @@ A comprehensive full-stack web application that replicates all core features of 
 ## ✨ Features
 
 ### 🔐 **Authentication & Authorization**
+
 - JWT-based authentication with refresh tokens
 - Role-based access control (Admin, Manager, User)
 - Secure password hashing with bcrypt
 - Protected routes and API endpoints
 
 ### ⏰ **Time Tracking**
+
 - Real-time timer with start/stop functionality
 - Manual time entry for offline work
 - Project and task assignment
@@ -21,6 +23,7 @@ A comprehensive full-stack web application that replicates all core features of 
 - Idle time detection
 
 ### 👥 **Team Management**
+
 - User invitation system
 - Team member roles and permissions
 - Real-time online/offline status
@@ -28,6 +31,7 @@ A comprehensive full-stack web application that replicates all core features of 
 - Performance metrics and analytics
 
 ### 📁 **Project Management**
+
 - Hierarchical project structure
 - Task creation and assignment
 - Budget tracking and monitoring
@@ -36,6 +40,7 @@ A comprehensive full-stack web application that replicates all core features of 
 - Team collaboration tools
 
 ### 📊 **Advanced Analytics**
+
 - Interactive dashboard with Chart.js
 - Real-time productivity metrics
 - Team performance analytics
@@ -44,12 +49,14 @@ A comprehensive full-stack web application that replicates all core features of 
 - Activity heatmaps
 
 ### 🔗 **Third-Party Integrations**
+
 - **Slack**: Notifications and alerts
 - **Trello**: Card creation and sync
 - **GitHub**: Issue tracking integration
 - **Webhooks**: Custom integrations
 
 ### ⚡ **Real-Time Features**
+
 - WebSocket-based live updates
 - Real-time notifications
 - Live user status tracking
@@ -59,6 +66,7 @@ A comprehensive full-stack web application that replicates all core features of 
 ## 🛠️ Tech Stack
 
 ### **Backend**
+
 - **Node.js** - JavaScript runtime environment
 - **Express.js** - Fast, unopinionated web framework
 - **MongoDB** - NoSQL database with Mongoose ODM
@@ -68,6 +76,7 @@ A comprehensive full-stack web application that replicates all core features of 
 - **Winston** - Advanced logging
 
 ### **Frontend**
+
 - **React 19** - Modern React with hooks
 - **Chart.js** - Data visualization
 - **Socket.IO** - Real-time WebSocket client
@@ -76,6 +85,7 @@ A comprehensive full-stack web application that replicates all core features of 
 - **Date-fns** - Date manipulation
 
 ### **Database**
+
 - **MongoDB** - Primary database
 - **Mongoose** - Object modeling for Node.js
 - **Aggregation Pipelines** - Complex analytics queries
@@ -89,6 +99,7 @@ Before starting, ensure you have the following installed:
 - **Git** for cloning the repository
 
 ### System Requirements
+
 - **RAM**: Minimum 4GB, Recommended 8GB+
 - **Storage**: At least 2GB free space
 - **OS**: Windows 10+, macOS 10.15+, or Linux (Ubuntu 18.04+)
@@ -140,7 +151,7 @@ Edit `/frontend/.env` with your configuration:
 
 ```env
 # Backend API URL
-REACT_APP_BACKEND_URL=http://localhost:8001
+REACT_APP_BACKEND_URL=https://icon-time-tracker.onrender.com
 
 # Optional: Analytics & Monitoring
 # REACT_APP_GOOGLE_ANALYTICS=""
@@ -156,11 +167,13 @@ REACT_APP_BACKEND_URL=http://localhost:8001
 #### Option A: Local MongoDB Installation
 
 **Windows:**
+
 1. Download MongoDB Community Server from [mongodb.com](https://www.mongodb.com/try/download/community)
 2. Install and start MongoDB service
 3. Default connection: `mongodb://localhost:27017`
 
 **macOS:**
+
 ```bash
 # Using Homebrew
 brew tap mongodb/brew
@@ -169,6 +182,7 @@ brew services start mongodb/brew/mongodb-community
 ```
 
 **Linux (Ubuntu):**
+
 ```bash
 # Import MongoDB public key
 wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
@@ -264,6 +278,7 @@ sudo supervisorctl tail -f backend
 #### Method 2: Manual Start (Development)
 
 **Terminal 1 - Backend:**
+
 ```bash
 cd backend
 node server.js
@@ -272,6 +287,7 @@ yarn dev
 ```
 
 **Terminal 2 - Frontend:**
+
 ```bash
 cd frontend
 yarn start
@@ -281,9 +297,9 @@ yarn start
 ### 7. Access the Application
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8001
-- **API Documentation**: http://localhost:8001/api
-- **Health Check**: http://localhost:8001/api/health
+- **Backend API**: https://icon-time-tracker.onrender.com
+- **API Documentation**: https://icon-time-tracker.onrender.com/api
+- **Health Check**: https://icon-time-tracker.onrender.com/api/health
 
 ## 📚 API Documentation
 
@@ -296,7 +312,8 @@ The application includes a comprehensive REST API with the following features:
 - **Rate Limiting**: Protection against abuse
 
 ### API Base URL
-- **Development**: http://localhost:8001/api
+
+- **Development**: https://icon-time-tracker.onrender.com/api
 - **Production**: Your production domain + /api
 
 ### Key API Endpoints
@@ -338,22 +355,23 @@ POST /api/integrations/github/connect   # Connect GitHub
 
 #### Backend (.env)
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `MONGO_URL` | MongoDB connection string | `mongodb://localhost:27017` | Yes |
-| `DB_NAME` | Database name | `hubstaff_clone` | Yes |
-| `SECRET_KEY` | JWT secret key | - | Yes |
-| `ENVIRONMENT` | Environment mode | `development` | No |
+| Variable      | Description               | Default                     | Required |
+| ------------- | ------------------------- | --------------------------- | -------- |
+| `MONGO_URL`   | MongoDB connection string | `mongodb://localhost:27017` | Yes      |
+| `DB_NAME`     | Database name             | `hubstaff_clone`            | Yes      |
+| `SECRET_KEY`  | JWT secret key            | -                           | Yes      |
+| `ENVIRONMENT` | Environment mode          | `development`               | No       |
 
 #### Frontend (.env)
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `REACT_APP_BACKEND_URL` | Backend API URL | `http://localhost:8001` | Yes |
+| Variable                | Description     | Default                                  | Required |
+| ----------------------- | --------------- | ---------------------------------------- | -------- |
+| `REACT_APP_BACKEND_URL` | Backend API URL | `https://icon-time-tracker.onrender.com` | Yes      |
 
 ### Database Configuration
 
 The application uses MongoDB with the following collections:
+
 - `users` - User accounts and profiles
 - `projects` - Project information
 - `tasks` - Task details and assignments
@@ -378,10 +396,12 @@ SECRET_KEY="$(openssl rand -hex 32)"
 For production, update CORS settings in `/backend/server.js`:
 
 ```javascript
-app.use(cors({
-  origin: ["https://yourdomain.com"], // Update for production
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ["https://yourdomain.com"], // Update for production
+    credentials: true,
+  })
+);
 ```
 
 ## 🧪 Testing
@@ -446,7 +466,7 @@ REACT_APP_BACKEND_URL=https://api.yourdomain.com
 Create `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   backend:
     build: ./backend
@@ -463,7 +483,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
+      - REACT_APP_BACKEND_URL=https://icon-time-tracker.onrender.com
 
   mongo:
     image: mongo:5.0
@@ -491,6 +511,7 @@ docker-compose up -d
 **Error**: `pymongo.errors.ServerSelectionTimeoutError`
 
 **Solutions**:
+
 - Ensure MongoDB is running: `sudo systemctl status mongod`
 - Check connection string in `.env`
 - For MongoDB Atlas, ensure IP whitelist includes your IP
@@ -501,6 +522,7 @@ docker-compose up -d
 **Error**: `Address already in use`
 
 **Solutions**:
+
 ```bash
 # Find and kill process using port 8001
 lsof -ti:8001 | xargs kill -9
@@ -514,6 +536,7 @@ node server.js # and update PORT in .env
 **Error**: `ModuleNotFoundError`
 
 **Solutions**:
+
 ```bash
 # Ensure dependencies are installed
 cd backend && yarn install
@@ -525,6 +548,7 @@ cd frontend && yarn install
 #### 4. Environment Variables Not Loading
 
 **Solutions**:
+
 - Ensure `.env` files exist in correct directories
 - Check file permissions: `chmod 644 .env`
 - Restart application after env changes
@@ -533,6 +557,7 @@ cd frontend && yarn install
 #### 5. WebSocket Connection Issues
 
 **Solutions**:
+
 - Check if backend is running on correct port
 - Verify CORS settings
 - Check browser console for errors
