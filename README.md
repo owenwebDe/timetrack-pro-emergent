@@ -151,7 +151,7 @@ Edit `/frontend/.env` with your configuration:
 
 ```env
 # Backend API URL
-REACT_APP_BACKEND_URL=https://icon-time-tracker.onrender.com
+REACT_APP_BACKEND_URL=http://localhost:8001
 
 # Optional: Analytics & Monitoring
 # REACT_APP_GOOGLE_ANALYTICS=""
@@ -296,10 +296,10 @@ yarn start
 
 ### 7. Access the Application
 
-- **Frontend**: https://icon-time-tracker.vercel.app
-- **Backend API**: https://icon-time-tracker.onrender.com
-- **API Documentation**: https://icon-time-tracker.onrender.com/api
-- **Health Check**: https://icon-time-tracker.onrender.com/api/health
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8001
+- **API Documentation**: http://localhost:8001/api
+- **Health Check**: http://localhost:8001/api/health
 
 ## 📚 API Documentation
 
@@ -313,7 +313,7 @@ The application includes a comprehensive REST API with the following features:
 
 ### API Base URL
 
-- **Development**: https://icon-time-tracker.onrender.com/api
+- **Development**: http://localhost:8001/api
 - **Production**: Your production domain + /api
 
 ### Key API Endpoints
@@ -364,9 +364,9 @@ POST /api/integrations/github/connect   # Connect GitHub
 
 #### Frontend (.env)
 
-| Variable                | Description     | Default                                  | Required |
-| ----------------------- | --------------- | ---------------------------------------- | -------- |
-| `REACT_APP_BACKEND_URL` | Backend API URL | `https://icon-time-tracker.onrender.com` | Yes      |
+| Variable                | Description     | Default                 | Required |
+| ----------------------- | --------------- | ----------------------- | -------- |
+| `REACT_APP_BACKEND_URL` | Backend API URL | `http://localhost:8001` | Yes      |
 
 ### Database Configuration
 
@@ -483,7 +483,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_BACKEND_URL=https://icon-time-tracker.onrender.com
+      - REACT_APP_BACKEND_URL=http://localhost:8001
 
   mongo:
     image: mongo:5.0
