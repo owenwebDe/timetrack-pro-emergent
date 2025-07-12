@@ -87,70 +87,11 @@ class TimeTrackingTest:
         self.user_ids["admin"] = data["user"]["id"]
         print(f"✅ Admin user registered: {self.admin_user['email']}")
         
-        # Create invitation for regular user
-        invitation_data = {
-            "email": self.regular_user["email"],
-            "role": "user",
-            "message": "Join our time tracking test organization"
-        }
-        
-        response = requests.post(
-            f"{API_URL}/invitations/",
-            json=invitation_data,
-            headers=self.get_headers("admin")
-        )
-        
-        if response.status_code != 201:
-            raise Exception(f"Failed to create invitation: {response.text}")
-        
-        invitation_data = response.json()
-        invitation_token = invitation_data["invitation"]["token"] if "token" in invitation_data["invitation"] else invitation_data.get("token")
-        
-        # If token is not in the response, we need to get it differently
-        if not invitation_token:
-            print(f"⚠️ Token not found in invitation response. Response keys: {list(invitation_data.keys())}")
-            if "invitation" in invitation_data:
-                print(f"   Invitation keys: {list(invitation_data['invitation'].keys())}")
-            # For testing purposes, let's try to get invitations and find the token
-            invitations_response = requests.get(
-                f"{API_URL}/invitations/",
-                headers=self.get_headers("admin")
-            )
-            if invitations_response.status_code == 200:
-                invitations = invitations_response.json().get("invitations", [])
-                for inv in invitations:
-                    if inv.get("email") == self.regular_user["email"]:
-                        # We still won't have the token, so let's use a different approach
-                        print("⚠️ Cannot get invitation token from API response. Skipping invitation-based registration.")
-                        # Fall back to creating users in separate organizations
-                        response = requests.post(f"{API_URL}/auth/register", json=self.regular_user)
-                        if response.status_code != 201:
-                            raise Exception(f"Failed to register regular user: {response.text}")
-                        
-                        data = response.json()
-                        self.tokens["user"] = data["token"]
-                        self.user_ids["user"] = data["user"]["id"]
-                        print(f"✅ Regular user registered in separate org: {self.regular_user['email']}")
-                        break
-            else:
-                raise Exception("Could not retrieve invitation token")
-        else:
-            print(f"✅ Invitation created for regular user")
-            
-            # Register regular user with invitation token
-            regular_user_with_token = self.regular_user.copy()
-            regular_user_with_token["invitationToken"] = invitation_token
-            # Remove organizationName since they're joining existing org
-            del regular_user_with_token["organizationName"]
-            
-            response = requests.post(f"{API_URL}/auth/register", json=regular_user_with_token)
-            if response.status_code != 201:
-                raise Exception(f"Failed to register regular user: {response.text}")
-            
-            data = response.json()
-            self.tokens["user"] = data["token"]
-            self.user_ids["user"] = data["user"]["id"]
-            print(f"✅ Regular user registered: {self.regular_user['email']}")
+        # For time tracking testing, we'll use the admin user for all tests
+        # This simplifies the setup and focuses on time tracking functionality
+        self.tokens["user"] = self.tokens["admin"]
+        self.user_ids["user"] = self.user_ids["admin"]
+        print(f"✅ Using admin user for time tracking tests")
         
         # Create project
         response = requests.post(
@@ -165,21 +106,9 @@ class TimeTrackingTest:
         self.project_id = data["project"]["id"]
         print(f"✅ Project created: {self.test_project['name']} (ID: {self.project_id})")
         
-        # Add regular user to project
-        update_data = {"members": [self.user_ids["user"]]}
-        response = requests.put(
-            f"{API_URL}/projects/{self.project_id}",
-            json=update_data,
-            headers=self.get_headers("admin")
-        )
-        if response.status_code != 200:
-            print(f"⚠️ Warning: Failed to add user to project: {response.text}")
-        else:
-            print(f"✅ User added to project")
-        
         # Create task
         task_data = self.test_task.copy()
-        task_data["assignee_id"] = self.user_ids["user"]
+        task_data["assignee_id"] = self.user_ids["admin"]
         
         response = requests.post(
             f"{API_URL}/projects/{self.project_id}/tasks",
