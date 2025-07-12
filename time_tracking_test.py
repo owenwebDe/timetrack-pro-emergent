@@ -77,7 +77,7 @@ class TimeTrackingTest:
         """Setup users, project, and task for testing"""
         print("\n🔧 Setting up test data...")
         
-        # Register admin user
+        # Register admin user (creates organization)
         response = requests.post(f"{API_URL}/auth/register", json=self.admin_user)
         if response.status_code != 201:
             raise Exception(f"Failed to register admin user: {response.text}")
@@ -87,8 +87,33 @@ class TimeTrackingTest:
         self.user_ids["admin"] = data["user"]["id"]
         print(f"✅ Admin user registered: {self.admin_user['email']}")
         
-        # Register regular user
-        response = requests.post(f"{API_URL}/auth/register", json=self.regular_user)
+        # Create invitation for regular user
+        invitation_data = {
+            "email": self.regular_user["email"],
+            "role": "user",
+            "message": "Join our time tracking test organization"
+        }
+        
+        response = requests.post(
+            f"{API_URL}/invitations/",
+            json=invitation_data,
+            headers=self.get_headers("admin")
+        )
+        
+        if response.status_code != 201:
+            raise Exception(f"Failed to create invitation: {response.text}")
+        
+        invitation_data = response.json()
+        invitation_token = invitation_data["invitation"]["token"]
+        print(f"✅ Invitation created for regular user")
+        
+        # Register regular user with invitation token
+        regular_user_with_token = self.regular_user.copy()
+        regular_user_with_token["invitationToken"] = invitation_token
+        # Remove organizationName since they're joining existing org
+        del regular_user_with_token["organizationName"]
+        
+        response = requests.post(f"{API_URL}/auth/register", json=regular_user_with_token)
         if response.status_code != 201:
             raise Exception(f"Failed to register regular user: {response.text}")
         
