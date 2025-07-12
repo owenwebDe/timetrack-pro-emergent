@@ -26,7 +26,7 @@ class TimeTrackingTest:
             "name": "Time Tracker Admin",
             "email": f"timetrack_admin_{uuid.uuid4()}@example.com",
             "password": "TimeTrack@123456",
-            "company": "Time Tracking Test Co",
+            "organizationName": "Time Tracking Test Co",
             "role": "admin"
         }
         
@@ -34,7 +34,7 @@ class TimeTrackingTest:
             "name": "Time Tracker User",
             "email": f"timetrack_user_{uuid.uuid4()}@example.com",
             "password": "TimeTrack@123456",
-            "company": "Time Tracking Test Co",
+            "organizationName": "Time Tracking Test Co",
             "role": "user"
         }
         
