@@ -354,8 +354,34 @@ class TimeTrackingTest:
             else:
                 print(f"   ❌ Duplicate timer start not prevented: {response.status_code}")
                 results.append(False)
+        elif start_response.status_code == 400:
+            # There might already be an active timer, let's check
+            active_response = requests.get(
+                f"{API_URL}/time-tracking/active",
+                headers=self.get_headers("user")
+            )
+            if active_response.status_code == 200 and active_response.json():
+                # There is an active timer, try to start another
+                response = requests.post(
+                    f"{API_URL}/time-tracking/start",
+                    json={
+                        "project_id": self.project_id,
+                        "description": "Second timer"
+                    },
+                    headers=self.get_headers("user")
+                )
+                
+                if response.status_code == 400:
+                    print(f"   ✅ Duplicate timer start prevented correctly (existing active timer)")
+                    results.append(True)
+                else:
+                    print(f"   ❌ Duplicate timer start not prevented: {response.status_code}")
+                    results.append(False)
+            else:
+                print(f"   ⚠️ Could not start initial timer for duplicate test: {start_response.text}")
+                results.append(False)
         else:
-            print(f"   ⚠️ Could not start initial timer for duplicate test")
+            print(f"   ⚠️ Could not start initial timer for duplicate test: {start_response.text}")
             results.append(False)
         
         # Test stopping non-existent timer
