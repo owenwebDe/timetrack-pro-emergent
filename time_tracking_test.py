@@ -22,11 +22,12 @@ print(f"Testing Time Tracking API at: {API_URL}")
 
 class TimeTrackingTest:
     def __init__(self):
+        org_suffix = str(uuid.uuid4())[:8]
         self.admin_user = {
             "name": "Time Tracker Admin",
             "email": f"timetrack_admin_{uuid.uuid4()}@example.com",
             "password": "TimeTrack@123456",
-            "organizationName": "Time Tracking Test Co",
+            "organizationName": f"TimeTrack Admin Org {org_suffix}",
             "role": "admin"
         }
         
@@ -34,7 +35,7 @@ class TimeTrackingTest:
             "name": "Time Tracker User",
             "email": f"timetrack_user_{uuid.uuid4()}@example.com",
             "password": "TimeTrack@123456",
-            "organizationName": "Time Tracking Test Co",
+            "organizationName": f"TimeTrack User Org {org_suffix}",
             "role": "user"
         }
         
