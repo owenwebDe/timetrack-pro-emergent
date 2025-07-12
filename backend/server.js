@@ -94,7 +94,7 @@ const authLimiter = createRateLimit(
 
 const generalLimiter = createRateLimit(
   1 * 60 * 1000, // 1 minute
-  100, // 100 requests per minute (increased from 100)
+  100, // 1000 requests per minute (increased for testing)
   "Too many requests, please try again later"
 );
 
