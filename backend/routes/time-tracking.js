@@ -12,25 +12,6 @@ const router = express.Router();
 // Apply auth middleware to all routes
 router.use(authMiddleware);
 
-// DIAGNOSTIC ROUTE - Add after router.use(authMiddleware);
-router.post("/diagnose", async (req, res) => {
-  console.log("🔍 DIAGNOSTIC ROUTE HIT");
-  console.log("🔍 Request body:", req.body);
-  console.log("🔍 User:", req.user ? req.user.id : "No user");
-
-  try {
-    res.json({
-      success: true,
-      message: "Diagnostic endpoint working",
-      user: req.user ? { id: req.user.id, org: req.user.organizationId } : null,
-      body: req.body,
-      timestamp: new Date(),
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // DIAGNOSTIC ROUTE - Add this after router.use(authMiddleware);
 router.post("/diagnose", async (req, res) => {
   const diagnostics = {
@@ -114,50 +95,6 @@ router.post("/diagnose", async (req, res) => {
         diagnostics.errors.push(`Database error: ${error.message}`);
         diagnostics.checks.push({
           name: "Database Connection",
-          status: "❌ FAIL",
-          details: error.message,
-        });
-      }
-    }
-
-    // Check 5: TimeEntry Creation Test
-    if (diagnostics.errors.length === 0 && req.body.project_id) {
-      try {
-        const testEntry = new TimeEntry({
-          id: uuidv4(),
-          organizationId: req.user.organizationId,
-          user_id: req.user.id,
-          project_id: req.body.project_id,
-          description: "Test entry",
-          start_time: new Date(),
-          billable: true,
-          hourly_rate: 0,
-        });
-
-        const validationError = testEntry.validateSync();
-        if (validationError) {
-          const errorDetails = Object.keys(validationError.errors)
-            .map((key) => `${key}: ${validationError.errors[key].message}`)
-            .join(", ");
-          diagnostics.errors.push(
-            `TimeEntry validation failed: ${errorDetails}`
-          );
-          diagnostics.checks.push({
-            name: "TimeEntry Validation",
-            status: "❌ FAIL",
-            details: errorDetails,
-          });
-        } else {
-          diagnostics.checks.push({
-            name: "TimeEntry Validation",
-            status: "✅ PASS",
-            details: "TimeEntry passes validation",
-          });
-        }
-      } catch (error) {
-        diagnostics.errors.push(`TimeEntry test failed: ${error.message}`);
-        diagnostics.checks.push({
-          name: "TimeEntry Test",
           status: "❌ FAIL",
           details: error.message,
         });
@@ -396,8 +333,12 @@ router.post("/stop/:entryId", async (req, res) => {
         task.timeTracking.activeEntryId = null;
         task.timeTracking.totalTracked += duration;
 
-        // Update actual hours
-        await task.updateTimeTracking();
+        // Update actual hours if task has updateTimeTracking method
+        if (task.updateTimeTracking) {
+          await task.updateTimeTracking();
+        }
+
+        await task.save();
 
         console.log(
           `📝 Task time tracking updated: ${task.title} (+${Math.round(
@@ -407,13 +348,13 @@ router.post("/stop/:entryId", async (req, res) => {
       }
     }
 
-    // Update project stats
+    // Update project stats if project has updateStats method
     try {
       const project = await Project.findOne({
         id: timeEntry.project_id,
         organizationId: req.user.organizationId,
       });
-      if (project) {
+      if (project && project.updateStats) {
         await project.updateStats();
       }
     } catch (projectError) {
