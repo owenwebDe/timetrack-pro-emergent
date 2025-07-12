@@ -88,7 +88,7 @@ const createRateLimit = (windowMs, max, message) => {
 // Different rate limits for different endpoint types
 const authLimiter = createRateLimit(
   15 * 60 * 1000, // 15 minutes
-  5, // 100 auth attempts per 15 minutes (increased for testing)
+  100, // 100 auth attempts per 15 minutes (increased for testing)
   "Too many authentication attempts, please try again later"
 );
 
