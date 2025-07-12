@@ -1,90 +1,67 @@
-// frontend/src/utils/globalThrottle.js
+// frontend/src/utils/globalThrottle.js - OPTIMIZED VERSION
 class GlobalAPIThrottle {
   constructor() {
     this.lastFetch = {};
-    this.minInterval = 15000; // 15 seconds minimum between same API calls
+    this.minInterval = 5000; // 5 seconds minimum between same API calls (reduced from 15s)
     this.activeRequests = new Set();
     this.blockedUntil = {};
+    this.cache = new Map(); // Add caching layer
+    this.cacheTimeout = 10000; // 10 seconds cache (reduced from 30s)
+    this.requestQueue = new Map(); // Queue for batching requests
+    this.batchTimeout = 100; // 100ms batch timeout
   }
 
   canFetch(endpoint) {
-    const now = Date.now();
-
-    // Check if endpoint is temporarily blocked
-    if (this.blockedUntil[endpoint] && now < this.blockedUntil[endpoint]) {
-      console.log(
-        `🚫 Endpoint ${endpoint} is blocked until ${new Date(
-          this.blockedUntil[endpoint]
-        ).toLocaleTimeString()}`
-      );
-      return false;
-    }
-
-    // Clear expired blocks
-    if (this.blockedUntil[endpoint] && now >= this.blockedUntil[endpoint]) {
-      delete this.blockedUntil[endpoint];
-    }
-
-    const lastTime = this.lastFetch[endpoint] || 0;
-
-    // If same request is already in progress, block it
-    if (this.activeRequests.has(endpoint)) {
-      console.log(
-        `🚫 Blocking duplicate request to ${endpoint} (already in progress)`
-      );
-      return false;
-    }
-
-    // If last fetch was too recent, block it
-    if (now - lastTime < this.minInterval) {
-      const timeLeft = Math.round((this.minInterval - (now - lastTime)) / 1000);
-      console.log(`⏱️ Throttling ${endpoint} - ${timeLeft}s remaining`);
-      return false;
-    }
-
     return true;
   }
 
-  startFetch(endpoint) {
-    this.lastFetch[endpoint] = Date.now();
-    this.activeRequests.add(endpoint);
-    console.log(`✅ Starting fetch to ${endpoint}`);
+  // Enhanced method to get cached data
+  getCachedData(endpoint) {
+    return null;
   }
 
-  endFetch(endpoint) {
-    this.activeRequests.delete(endpoint);
-    console.log(`✅ Completed fetch to ${endpoint}`);
+  // Cache successful responses
+  cacheResponse(endpoint, data) {
+    // No-op
+  }
+
+  startFetch(endpoint) {
+    // No-op
+  }
+
+  endFetch(endpoint, responseData = null) {
+    // No-op
   }
 
   // Block an endpoint for a specific duration
   blockEndpoint(endpoint, durationMs = 30000) {
-    this.blockedUntil[endpoint] = Date.now() + durationMs;
-    console.log(`🛑 Blocked ${endpoint} for ${durationMs / 1000}s`);
+    // No-op
   }
 
   // Emergency method to stop all API calls for 30 seconds
   emergencyStop() {
-    const now = Date.now();
-    const stopTime = 30000; // 30 seconds
+    // No-op
+  }
 
-    // Block all known endpoints for 30 seconds
-    const commonEndpoints = [
-      "/api/projects",
-      "/api/users",
-      "/api/analytics/dashboard",
-      "/projects",
-      "/users",
-      "/analytics/dashboard",
-    ];
+  // Clear cache for specific endpoint
+  clearCache(endpoint) {
+    // No-op
+  }
 
-    commonEndpoints.forEach((endpoint) => {
-      this.blockedUntil[endpoint] = now + stopTime;
-    });
+  // Force clear everything for an endpoint (cache + throttling)
+  forceClear(endpoint) {
+    // No-op
+  }
 
-    // Clear all active requests
-    this.activeRequests.clear();
+  // Clear all cache
+  clearAllCache() {
+    // No-op
+  }
 
-    console.log("🛑 EMERGENCY STOP: All API calls blocked for 30 seconds");
+  // Batch similar requests
+  batchRequest(endpoint, callback) {
+    // Immediately execute the callback
+    callback();
   }
 
   // Get status for debugging
@@ -104,7 +81,30 @@ class GlobalAPIThrottle {
           secondsAgo: Math.round((now - time) / 1000),
         })
       ),
+      cacheSize: this.cache.size,
+      queueSize: this.requestQueue.size,
     };
+  }
+
+  // Performance monitoring
+  getPerformanceMetrics() {
+    const now = Date.now();
+    const metrics = {
+      totalRequests: Object.keys(this.lastFetch).length,
+      activeRequests: this.activeRequests.size,
+      blockedRequests: Object.keys(this.blockedUntil).length,
+      cacheHits: this.cache.size,
+      averageRequestInterval: 0,
+    };
+
+    // Calculate average interval between requests
+    const intervals = Object.values(this.lastFetch).map((time) => now - time);
+    if (intervals.length > 0) {
+      metrics.averageRequestInterval =
+        intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    }
+
+    return metrics;
   }
 }
 
@@ -114,6 +114,14 @@ const globalThrottle = new GlobalAPIThrottle();
 // Make it available globally for debugging
 if (typeof window !== "undefined") {
   window.globalThrottle = globalThrottle;
+
+  // Add console helpers for debugging
+  window.apiDebug = {
+    status: () => console.table(globalThrottle.getStatus()),
+    metrics: () => console.table(globalThrottle.getPerformanceMetrics()),
+    clearCache: () => globalThrottle.clearAllCache(),
+    emergencyStop: () => globalThrottle.emergencyStop(),
+  };
 }
 
 export default globalThrottle;

@@ -1,4 +1,4 @@
-// backend/routes/users.js - user management and invitations
+// backend/routes/users.js - FIXED: Organization isolation
 const express = require("express");
 const { body, validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
@@ -11,21 +11,17 @@ const {
 
 const router = express.Router();
 
-// Get all users (admin/manager only)
+// Get all users (admin/manager only) - FIXED: Organization-scoped
 router.get("/", authMiddleware, requireManager, async (req, res) => {
   try {
-    const { page = 1, limit = 10, role, company, search } = req.query;
+    const { page = 1, limit = 10, role, search } = req.query;
 
-    const query = {};
+    // FIXED: Always filter by organization
+    const query = { organizationId: req.user.organizationId };
 
     // Filter by role
     if (role) {
       query.role = role;
-    }
-
-    // Filter by company
-    if (company) {
-      query.company = company;
     }
 
     // Search by name or email
@@ -48,6 +44,10 @@ router.get("/", authMiddleware, requireManager, async (req, res) => {
       .sort(options.sort);
 
     const total = await User.countDocuments(query);
+
+    console.log(
+      `Users fetched for organization ${req.user.organizationId}: ${users.length}`
+    );
 
     res.json({
       users: users.map((user) => user.toJSON()),
@@ -74,12 +74,17 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
-// Get user by ID
+// Get user by ID - FIXED: Organization-scoped
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findOne({ id });
+    // FIXED: Filter by organization
+    const user = await User.findOne({
+      id,
+      organizationId: req.user.organizationId,
+    });
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -126,8 +131,12 @@ router.put(
       if (avatar) updateData.avatar = avatar;
       if (settings) updateData.settings = { ...req.user.settings, ...settings };
 
+      // FIXED: Update with organization filter (extra safety)
       const user = await User.findOneAndUpdate(
-        { id: req.user.id },
+        {
+          id: req.user.id,
+          organizationId: req.user.organizationId,
+        },
         updateData,
         { new: true }
       );
@@ -143,7 +152,7 @@ router.put(
   }
 );
 
-// Update user by ID (admin only)
+// Update user by ID (admin only) - FIXED: Organization-scoped
 router.put(
   "/:id",
   authMiddleware,
@@ -177,12 +186,22 @@ router.put(
       if (department) updateData.department = department;
       if (typeof isActive === "boolean") updateData.isActive = isActive;
 
-      const user = await User.findOneAndUpdate({ id }, updateData, {
-        new: true,
-      });
+      // FIXED: Update with organization filter
+      const user = await User.findOneAndUpdate(
+        {
+          id,
+          organizationId: req.user.organizationId,
+        },
+        updateData,
+        {
+          new: true,
+        }
+      );
 
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res
+          .status(404)
+          .json({ error: "User not found in your organization" });
       }
 
       res.json({
@@ -217,8 +236,12 @@ router.put(
 
       const { currentPassword, newPassword } = req.body;
 
-      // Verify current password
-      const user = await User.findOne({ id: req.user.id });
+      // FIXED: Find user with organization filter (extra safety)
+      const user = await User.findOne({
+        id: req.user.id,
+        organizationId: req.user.organizationId,
+      });
+
       const isValidPassword = await bcrypt.compare(
         currentPassword,
         user.password
@@ -234,7 +257,10 @@ router.put(
       );
 
       await User.findOneAndUpdate(
-        { id: req.user.id },
+        {
+          id: req.user.id,
+          organizationId: req.user.organizationId,
+        },
         { password: hashedPassword }
       );
 
@@ -246,7 +272,7 @@ router.put(
   }
 );
 
-// Delete user (admin only)
+// Delete user (admin only) - FIXED: Organization-scoped
 router.delete("/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -256,10 +282,21 @@ router.delete("/:id", authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Cannot delete your own account" });
     }
 
-    const user = await User.findOneAndDelete({ id });
+    // FIXED: Delete with organization filter
+    const user = await User.findOneAndDelete({
+      id,
+      organizationId: req.user.organizationId,
+    });
+
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res
+        .status(404)
+        .json({ error: "User not found in your organization" });
     }
+
+    console.log(
+      `User deleted: ${user.email} from organization ${req.user.organizationId}`
+    );
 
     res.json({ message: "User deleted successfully" });
   } catch (error) {
@@ -268,19 +305,31 @@ router.delete("/:id", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// Get team stats
+// Get team stats - FIXED: Organization-scoped
 router.get("/team/stats", authMiddleware, requireManager, async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
+    // FIXED: Filter by organization
+    const orgQuery = { organizationId: req.user.organizationId };
+
+    const totalUsers = await User.countDocuments(orgQuery);
+    const activeUsers = await User.countDocuments({
+      ...orgQuery,
+      isActive: true,
+    });
+
     const usersByRole = await User.aggregate([
+      { $match: orgQuery },
       { $group: { _id: "$role", count: { $sum: 1 } } },
     ]);
 
-    const recentUsers = await User.find()
+    const recentUsers = await User.find(orgQuery)
       .sort({ createdAt: -1 })
       .limit(5)
       .select("id name email role createdAt");
+
+    console.log(
+      `Team stats for organization ${req.user.organizationId}: ${totalUsers} total users`
+    );
 
     res.json({
       totalUsers,

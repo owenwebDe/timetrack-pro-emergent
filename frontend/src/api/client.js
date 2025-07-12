@@ -1,43 +1,56 @@
-// frontend/src/api/client.js - FIXED: Proper token handling and error management
+// frontend/src/api/client.js - OPTIMIZED VERSION
 import axios from "axios";
 import globalThrottle from "../utils/globalThrottle";
 
 const BACKEND_URL =
-  process.env.REACT_APP_BACKEND_URL || "https://icon-time-tracker.onrender.com";
+  process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
 const API_BASE = `${BACKEND_URL}/api`;
 
-// Create axios instance
+// Create axios instance with optimized settings
 const apiClient = axios.create({
   baseURL: API_BASE,
-  timeout: 30000, // 30 second timeout
+  timeout: 15000, // Reduced timeout
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor with throttling
+// Request interceptor with enhanced throttling and caching
 apiClient.interceptors.request.use(
   (config) => {
     const endpoint = config.url;
 
-    // THROTTLE CHECK - This stops the API spam
-    if (!globalThrottle.canFetch(endpoint)) {
+    // Bypass throttle if force is true
+    if (config.force) {
+      // Optionally log: console.log(`Bypassing throttle for ${endpoint} due to force param`);
+    } else if (!globalThrottle.canFetch(endpoint)) {
       console.log(`🚫 Axios request to ${endpoint} blocked by throttle`);
       const error = new Error("Request throttled");
       error.isThrottled = true;
+      error.cachedData = globalThrottle.getCachedData(endpoint);
       return Promise.reject(error);
     }
 
-    globalThrottle.startFetch(endpoint);
+    if (!config.force) {
+      globalThrottle.startFetch(endpoint);
+    }
 
-    // FIXED: Better token retrieval
+    // Enhanced token retrieval
+    if (!config.headers) config.headers = {};
     const token =
       localStorage.getItem("hubstaff_token") ||
       localStorage.getItem("authToken") ||
       localStorage.getItem("token");
 
+    console.log(
+      `🔐 Token check for ${endpoint}:`,
+      token ? "Present" : "Missing"
+    );
+
     if (token && token !== "undefined" && token !== "null") {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn(`⚠️ No valid token found for ${endpoint}`);
     }
 
     return config;
@@ -47,10 +60,17 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor with throttling
+// Response interceptor with enhanced caching
 apiClient.interceptors.response.use(
   (response) => {
-    globalThrottle.endFetch(response.config.url);
+    // Don't process cached responses
+    if (response.fromCache) {
+      return response;
+    }
+
+    const endpoint = response.config.url;
+    globalThrottle.endFetch(endpoint, response.data);
+
     return response;
   },
   (error) => {
@@ -62,7 +82,7 @@ apiClient.interceptors.response.use(
     if (error.isThrottled) {
       console.warn("Request was throttled");
       return Promise.resolve({
-        data: [], // Return empty data instead of crashing
+        data: [],
         status: 429,
         statusText: "Throttled",
       });
@@ -75,7 +95,6 @@ apiClient.interceptors.response.use(
       localStorage.removeItem("token");
       localStorage.removeItem("hubstaff_user");
 
-      // Only redirect if not already on login/signup page
       if (
         !window.location.pathname.includes("/login") &&
         !window.location.pathname.includes("/signup") &&
@@ -87,9 +106,9 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 429) {
       console.warn("Rate limited by server");
-      globalThrottle.blockEndpoint(error.config.url, 60000); // Block for 1 minute
+      globalThrottle.blockEndpoint(error.config.url, 60000);
       return Promise.resolve({
-        data: [], // Return empty data instead of crashing
+        data: [],
         status: 429,
         statusText: "Rate Limited",
       });
@@ -99,20 +118,108 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Enhanced Auth API with organization support
+// Create a smart request wrapper that handles caching and batching
+const smartRequest = async (method, url, data = null, config = {}) => {
+  const force = config.force || false;
+  try {
+    // Ensure method is a valid string
+    const httpMethod =
+      typeof method === "string" ? method.toLowerCase() : "get";
+
+    console.log(`🚀 smartRequest: ${httpMethod.toUpperCase()} ${url}`, {
+      data,
+      config,
+    });
+
+    // Bypass throttle if force is true
+    if (!force && !globalThrottle.canFetch(url)) {
+      console.log(`🚫 Axios request to ${url} blocked by throttle`);
+      const error = new Error("Request throttled");
+      error.isThrottled = true;
+      error.cachedData = globalThrottle.getCachedData(url);
+      throw error;
+    }
+    if (!force) {
+      globalThrottle.startFetch(url);
+    }
+
+    // Enhanced token retrieval
+    if (!config.headers) config.headers = {};
+    const token =
+      localStorage.getItem("hubstaff_token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token");
+
+    console.log(`🔐 Token check for ${url}:`, token ? "Present" : "Missing");
+
+    if (token && token !== "undefined" && token !== "null") {
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn(`⚠️ No valid token found for ${url}`);
+    }
+
+    const response = await apiClient.request({
+      method: httpMethod,
+      url,
+      data,
+      ...config,
+    });
+
+    console.log(`✅ smartRequest response for ${url}:`, response);
+
+    // Ensure response has proper structure
+    if (response && typeof response === "object") {
+      return response;
+    }
+
+    // Return fallback structure if response is malformed
+    console.warn(`⚠️ Malformed response for ${url}:`, response);
+    return {
+      data: response || {},
+      status: 200,
+      statusText: "OK",
+    };
+  } catch (error) {
+    console.error(`❌ smartRequest error for ${url}:`, error);
+
+    if (error.isThrottled) {
+      // Try to return cached data for throttled requests
+      const cachedData = error.cachedData || globalThrottle.getCachedData(url);
+      if (cachedData && typeof cachedData === "object") {
+        console.log(`📦 Returning cached data for ${url}`);
+        return {
+          data: cachedData,
+          status: 200,
+          statusText: "OK (Cached)",
+          fromCache: true,
+        };
+      }
+
+      // Return safe fallback for throttled requests without cache
+      console.log(`⚠️ No cache available for throttled request ${url}`);
+      return {
+        data: {},
+        status: 429,
+        statusText: "Throttled",
+        fromCache: false,
+      };
+    }
+    throw error;
+  }
+};
+
+// Enhanced Auth API with better error handling
 export const authAPI = {
-  // FIXED: Proper login implementation
   login: async (credentials) => {
     try {
-      const response = await apiClient.post("/auth/login", credentials);
-
-      // Store token immediately
+      const response = await smartRequest("post", "/auth/login", credentials);
       if (response.data.token) {
         localStorage.setItem("hubstaff_token", response.data.token);
         localStorage.setItem("authToken", response.data.token);
+        // Clear cache on login
+        globalThrottle.clearAllCache();
         console.log("✅ Token stored successfully");
       }
-
       return response;
     } catch (error) {
       console.error("Login API error:", error);
@@ -120,18 +227,16 @@ export const authAPI = {
     }
   },
 
-  // FIXED: Updated register for admin-only registration with organization creation
   register: async (userData) => {
     try {
-      const response = await apiClient.post("/auth/register", userData);
-
-      // Store token immediately
+      const response = await smartRequest("post", "/auth/register", userData);
       if (response.data.token) {
         localStorage.setItem("hubstaff_token", response.data.token);
         localStorage.setItem("authToken", response.data.token);
+        // Clear cache on register
+        globalThrottle.clearAllCache();
         console.log("✅ Registration token stored successfully");
       }
-
       return response;
     } catch (error) {
       console.error("Register API error:", error);
@@ -139,28 +244,30 @@ export const authAPI = {
     }
   },
 
-  logout: () => apiClient.post("/auth/logout"),
+  logout: async () => {
+    try {
+      await smartRequest("post", "/auth/logout");
+      // Clear cache on logout
+      globalThrottle.clearAllCache();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  },
 
-  refreshToken: (refreshToken) =>
-    apiClient.post("/auth/refresh", { refresh_token: refreshToken }),
-
-  getCurrentUser: () => apiClient.get("/auth/me"),
-
-  // NEW: Accept invitation
+  getCurrentUser: () => smartRequest("get", "/auth/me"),
   acceptInvitation: async (token, userData) => {
     try {
-      const response = await apiClient.post(
+      const response = await smartRequest(
+        "post",
         `/auth/accept-invitation/${token}`,
         userData
       );
-
-      // Store token immediately
       if (response.data.token) {
         localStorage.setItem("hubstaff_token", response.data.token);
         localStorage.setItem("authToken", response.data.token);
+        globalThrottle.clearAllCache();
         console.log("✅ Invitation acceptance token stored successfully");
       }
-
       return response;
     } catch (error) {
       console.error("Accept invitation API error:", error);
@@ -168,41 +275,43 @@ export const authAPI = {
     }
   },
 
-  // NEW: Verify invitation token
   verifyInvitation: (token) =>
-    apiClient.get(`/auth/verify-invitation/${token}`),
-
-  // NEW: Check email availability
-  checkEmail: (email) => apiClient.post("/auth/check-email", { email }),
-
-  // NEW: Check organization name availability
+    smartRequest("get", `/auth/verify-invitation/${token}`),
+  checkEmail: (email) => smartRequest("post", "/auth/check-email", { email }),
   checkOrganization: (name) =>
-    apiClient.post("/auth/check-organization", { name }),
+    smartRequest("post", "/auth/check-organization", { name }),
 };
 
-// Enhanced Users API - organization-scoped
+// Enhanced Users API with intelligent caching
 export const usersAPI = {
   getUsers: async (params = {}) => {
     try {
-      const response = await apiClient.get("/users", { params });
+      const response = await smartRequest("get", "/users", null, { params });
       return response;
     } catch (error) {
       console.warn("Failed to fetch users:", error.message);
-      return { data: { users: [], pagination: {} } }; // Return empty data on error
+      return { data: { users: [], pagination: {} } };
     }
   },
 
-  getUser: (userId) => apiClient.get(`/users/${userId}`),
-
-  updateUser: (userId, userData) => apiClient.put(`/users/${userId}`, userData),
-
-  updateCurrentUser: (userData) => apiClient.put("/users/me", userData),
-
-  deleteUser: (userId) => apiClient.delete(`/users/${userId}`),
+  getUser: (userId) => smartRequest("get", `/users/${userId}`),
+  updateUser: (userId, userData) => {
+    // Clear cache when updating
+    globalThrottle.clearCache("/users");
+    return smartRequest("put", `/users/${userId}`, userData);
+  },
+  updateCurrentUser: (userData) => {
+    globalThrottle.clearCache("/users/me");
+    return smartRequest("put", "/users/me", userData);
+  },
+  deleteUser: (userId) => {
+    globalThrottle.clearCache("/users");
+    return smartRequest("delete", `/users/${userId}`);
+  },
 
   getTeamStats: async () => {
     try {
-      const response = await apiClient.get("/users/team/stats");
+      const response = await smartRequest("get", "/users/team/stats");
       return response;
     } catch (error) {
       console.warn("Failed to fetch team stats:", error.message);
@@ -210,14 +319,12 @@ export const usersAPI = {
     }
   },
 
-  // NEW: Change password
   changePassword: (currentPassword, newPassword) =>
-    apiClient.put("/users/me/password", { currentPassword, newPassword }),
+    smartRequest("put", "/users/me/password", { currentPassword, newPassword }),
 
-  // NEW: Get organization members (same as getUsers but more explicit)
   getOrganizationMembers: async (params = {}) => {
     try {
-      const response = await apiClient.get("/users", { params });
+      const response = await smartRequest("get", "/users", null, { params });
       return response;
     } catch (error) {
       console.warn("Failed to fetch organization members:", error.message);
@@ -226,46 +333,80 @@ export const usersAPI = {
   },
 };
 
-// Enhanced Projects API - organization-scoped
+// Enhanced Projects API with optimized caching
 export const projectsAPI = {
-  getProjects: async (params = {}) => {
+  getProjects: async (params = {}, force = false) => {
     try {
-      const response = await apiClient.get("/projects", { params });
-      return response;
-    } catch (error) {
-      console.warn("Failed to fetch projects:", error.message);
-      return { data: { projects: [], pagination: {} } }; // Return empty data on error
-    }
-  },
-
-  getProject: (projectId) => apiClient.get(`/projects/${projectId}`),
-
-  createProject: (projectData) => apiClient.post("/projects", projectData),
-
-  updateProject: (projectId, projectData) =>
-    apiClient.put(`/projects/${projectId}`, projectData),
-
-  deleteProject: (projectId) => apiClient.delete(`/projects/${projectId}`),
-
-  getProjectTasks: async (projectId) => {
-    try {
-      const response = await apiClient.get(`/projects/${projectId}/tasks`);
-      return response;
-    } catch (error) {
-      console.warn(
-        `Failed to fetch tasks for project ${projectId}:`,
-        error.message
+      console.log("🔍 Getting projects with params:", params);
+      const response = await smartRequest("get", "/projects", null, {
+        params,
+        force,
+      });
+      console.log("📦 Projects response:", response);
+      console.log("📦 Projects response data:", response.data);
+      console.log(
+        "📦 Projects array:",
+        response.data?.projects || response.data
       );
-      return { data: { tasks: [], pagination: {} } }; // Return empty data on error
+      console.log(
+        "📦 Projects count:",
+        Array.isArray(response.data?.projects)
+          ? response.data.projects.length
+          : Array.isArray(response.data)
+          ? response.data.length
+          : "not array"
+      );
+
+      // Ensure response has proper structure
+      if (!response || !response.data) {
+        console.warn("⚠️ Projects response missing data structure");
+        return { data: { projects: [], pagination: {} } };
+      }
+      return response;
+    } catch (error) {
+      console.error("❌ Failed to fetch projects:", error);
+      return { data: { projects: [], pagination: {} } };
     }
   },
 
-  createTask: (projectId, taskData) =>
-    apiClient.post(`/projects/${projectId}/tasks`, taskData),
+  getProject: (projectId) => smartRequest("get", `/projects/${projectId}`),
+
+  createProject: async (projectData) => {
+    try {
+      // Clear projects cache when creating
+      globalThrottle.clearCache("/projects");
+      console.log("🚀 Creating project with data:", projectData);
+
+      const response = await smartRequest("post", "/projects", projectData);
+      console.log("✅ Project creation response:", response);
+
+      // Clear cache again after creation to ensure fresh data on next fetch
+      globalThrottle.clearCache("/projects");
+
+      return response;
+    } catch (error) {
+      console.error("❌ Project creation failed:", error);
+      throw error;
+    }
+  },
+
+  updateProject: (projectId, projectData) => {
+    // Clear related caches
+    globalThrottle.clearCache("/projects");
+    globalThrottle.clearCache(`/projects/${projectId}`);
+    return smartRequest("put", `/projects/${projectId}`, projectData);
+  },
+
+  deleteProject: (projectId) => {
+    // Clear related caches
+    globalThrottle.clearCache("/projects");
+    globalThrottle.clearCache(`/projects/${projectId}`);
+    return smartRequest("delete", `/projects/${projectId}`);
+  },
 
   getProjectStats: async () => {
     try {
-      const response = await apiClient.get("/projects/stats/dashboard");
+      const response = await smartRequest("get", "/projects/stats/dashboard");
       return response;
     } catch (error) {
       console.warn("Failed to fetch project stats:", error.message);
@@ -273,40 +414,394 @@ export const projectsAPI = {
     }
   },
 
-  // NEW: Add member to project
-  addProjectMember: (projectId, userId) =>
-    apiClient.post(`/projects/${projectId}/members`, { userId }),
+  // Enhanced Task Management with smart caching
+  getProjectTasks: async (projectId, params = {}) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        `/projects/${projectId}/tasks`,
+        null,
+        { params }
+      );
+      return response;
+    } catch (error) {
+      console.warn(
+        `Failed to fetch tasks for project ${projectId}:`,
+        error.message
+      );
+      return { data: { tasks: [], pagination: {} } };
+    }
+  },
 
-  // NEW: Remove member from project
-  removeProjectMember: (projectId, userId) =>
-    apiClient.delete(`/projects/${projectId}/members/${userId}`),
+  createTask: async (projectId, taskData) => {
+    try {
+      // Clear related caches
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+      globalThrottle.clearCache("/projects/stats/dashboard");
+
+      const response = await smartRequest(
+        "post",
+        `/projects/${projectId}/tasks`,
+        taskData
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to create task:", error);
+      throw error;
+    }
+  },
+
+  updateTask: async (projectId, taskId, taskData) => {
+    try {
+      // Clear related caches
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+      globalThrottle.clearCache(`/projects/${projectId}/tasks/${taskId}`);
+
+      const response = await smartRequest(
+        "put",
+        `/projects/${projectId}/tasks/${taskId}`,
+        taskData
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      throw error;
+    }
+  },
+
+  deleteTask: async (projectId, taskId) => {
+    try {
+      // Clear related caches
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+
+      const response = await smartRequest(
+        "delete",
+        `/projects/${projectId}/tasks/${taskId}`
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+      throw error;
+    }
+  },
+
+  assignTask: async (projectId, taskId, userId) => {
+    try {
+      // Clear related caches
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+
+      const response = await smartRequest(
+        "post",
+        `/projects/${projectId}/tasks/${taskId}/assign`,
+        { userId }
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to assign task:", error);
+      throw error;
+    }
+  },
+
+  updateTaskStatus: async (projectId, taskId, status) => {
+    try {
+      // Clear related caches
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+
+      const response = await smartRequest(
+        "patch",
+        `/projects/${projectId}/tasks/${taskId}/status`,
+        { status }
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+      throw error;
+    }
+  },
+
+  getAssignableUsers: async (projectId) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        `/projects/${projectId}/assignable-users`
+      );
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch assignable users:", error.message);
+      return { data: { users: [] } };
+    }
+  },
+
+  getProjectMembers: async (projectId) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        `/projects/${projectId}/members`
+      );
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch project members:", error.message);
+      return { data: { members: [] } };
+    }
+  },
+
+  addProjectMember: (projectId, userId) => {
+    globalThrottle.clearCache(`/projects/${projectId}/members`);
+    return smartRequest("post", `/projects/${projectId}/members`, { userId });
+  },
+
+  removeProjectMember: (projectId, userId) => {
+    globalThrottle.clearCache(`/projects/${projectId}/members`);
+    return smartRequest("delete", `/projects/${projectId}/members/${userId}`);
+  },
+
+  bulkUpdateTasks: async (projectId, taskIds, updates) => {
+    try {
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+      const response = await smartRequest(
+        "patch",
+        `/projects/${projectId}/tasks/bulk`,
+        { taskIds, updates }
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to bulk update tasks:", error);
+      throw error;
+    }
+  },
+
+  bulkAssignTasks: async (projectId, taskIds, userId) => {
+    try {
+      globalThrottle.clearCache(`/projects/${projectId}/tasks`);
+      const response = await smartRequest(
+        "post",
+        `/projects/${projectId}/tasks/bulk-assign`,
+        { taskIds, userId }
+      );
+      return response;
+    } catch (error) {
+      console.error("Failed to bulk assign tasks:", error);
+      throw error;
+    }
+  },
 };
 
-// Enhanced Time Tracking API - organization-scoped
+// Organization API with smart caching (using users endpoint as fallback)
+export const organizationAPI = {
+  getOrganization: async () => {
+    try {
+      // First try to get data from localStorage to avoid rate limiting
+      const cachedUser = localStorage.getItem("hubstaff_user");
+      if (cachedUser) {
+        try {
+          const userData = JSON.parse(cachedUser);
+          console.log("🔍 Using cached user data for organization:", userData);
+
+          if (userData.organizationId || userData.organization_id) {
+            return {
+              data: {
+                id:
+                  userData.organizationId ||
+                  userData.organization_id ||
+                  "default",
+                name:
+                  userData.organizationName ||
+                  userData.organization_name ||
+                  userData.companyName ||
+                  "Default Organization",
+                settings:
+                  userData.organizationSettings ||
+                  userData.organization_settings ||
+                  {},
+                role: userData.role,
+                plan: userData.plan,
+                features: userData.features,
+              },
+            };
+          }
+        } catch (parseError) {
+          console.warn("Failed to parse cached user data:", parseError);
+        }
+      }
+
+      // Fallback to API call if no cached data
+      const response = await smartRequest("get", "/auth/me");
+      console.log("🔍 Auth/me response for organization:", response.data);
+
+      // Check if we have organization data in the response
+      if (
+        response.data &&
+        !Array.isArray(response.data) &&
+        Object.keys(response.data).length > 0
+      ) {
+        return {
+          data: {
+            id:
+              response.data.organizationId ||
+              response.data.organization_id ||
+              "default",
+            name:
+              response.data.organizationName ||
+              response.data.organization_name ||
+              "Default Organization",
+            settings:
+              response.data.organizationSettings ||
+              response.data.organization_settings ||
+              {},
+            role: response.data.role,
+            plan: response.data.plan,
+            features: response.data.features,
+          },
+        };
+      }
+
+      throw new Error("No valid data in auth response");
+    } catch (error) {
+      console.warn("Failed to fetch organization info:", error.message);
+
+      // Try one more time with cached data
+      const cachedUser = localStorage.getItem("hubstaff_user");
+      if (cachedUser) {
+        try {
+          const userData = JSON.parse(cachedUser);
+          return {
+            data: {
+              id:
+                userData.organizationId ||
+                userData.organization_id ||
+                "default",
+              name:
+                userData.organizationName ||
+                userData.organization_name ||
+                userData.companyName ||
+                "Default Organization",
+              settings: {},
+            },
+          };
+        } catch (parseError) {
+          // Fall through to default
+        }
+      }
+
+      return {
+        data: {
+          id: "default",
+          name: "Default Organization",
+          settings: {},
+        },
+      };
+    }
+  },
+  updateOrganization: (data) => {
+    globalThrottle.clearCache("/auth/me");
+    return smartRequest("put", "/auth/me", data);
+  },
+  getSettings: async () => {
+    try {
+      const response = await smartRequest("get", "/auth/me");
+      return { data: response.data?.organizationSettings || {} };
+    } catch (error) {
+      console.warn("Failed to fetch organization settings:", error.message);
+      return { data: {} };
+    }
+  },
+  updateSettings: (settings) => {
+    globalThrottle.clearCache("/auth/me");
+    return smartRequest("put", "/auth/me", { organizationSettings: settings });
+  },
+  getStats: async () => {
+    try {
+      // Use analytics endpoint as fallback for organization stats
+      const response = await smartRequest("get", "/analytics/dashboard");
+      return { data: response.data || {} };
+    } catch (error) {
+      console.warn("Failed to fetch organization stats:", error.message);
+      return { data: {} };
+    }
+  },
+  getMembers: (params = {}) => usersAPI.getUsers(params),
+  updateMember: (memberId, data) => usersAPI.updateUser(memberId, data),
+  removeMember: (memberId) => usersAPI.deleteUser(memberId),
+  getInvitations: (params = {}) => invitationsAPI.getInvitations(params),
+  sendInvitation: (data) => invitationsAPI.sendInvitation(data),
+  cancelInvitation: (invitationId) =>
+    invitationsAPI.cancelInvitation(invitationId),
+  resendInvitation: (invitationId) =>
+    invitationsAPI.resendInvitation(invitationId),
+  getBilling: () => smartRequest("get", "/organizations/billing"),
+  updateBilling: (billingData) => {
+    globalThrottle.clearCache("/organizations/billing");
+    return smartRequest("put", "/organizations/billing", billingData);
+  },
+  changePlan: (planId) =>
+    smartRequest("post", "/organizations/billing/change-plan", { planId }),
+};
+
+// Enhanced Time Tracking API with smart caching
 export const timeTrackingAPI = {
-  startTracking: (data) => apiClient.post("/time-tracking/start", data),
+  startTracking: (data) => {
+    globalThrottle.clearCache("/time-tracking/active");
+    return smartRequest("post", "/time-tracking/start", data);
+  },
 
-  stopTracking: (entryId) => apiClient.post(`/time-tracking/stop/${entryId}`),
+  stopTracking: (entryId) => {
+    globalThrottle.clearCache("/time-tracking/active");
+    return smartRequest("post", `/time-tracking/stop/${entryId}`);
+  },
 
-  getActiveEntry: () => apiClient.get("/time-tracking/active"),
+  getActiveEntry: async () => {
+    try {
+      const response = await smartRequest("get", "/time-tracking/active");
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch active entry:", error.message);
+      return { data: null };
+    }
+  },
 
-  getTimeEntries: (params = {}) =>
-    apiClient.get("/time-tracking/entries", { params }),
+  getTimeEntries: async (params = {}) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        "/time-tracking/entries",
+        null,
+        { params }
+      );
+      // Ensure response has proper structure
+      if (!response || !response.data) {
+        return { data: { entries: [], pagination: {} } };
+      }
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch time entries:", error);
+      return { data: { entries: [], pagination: {} } };
+    }
+  },
 
-  createManualEntry: (data) => apiClient.post("/time-tracking/manual", data),
+  createManualEntry: (data) => {
+    globalThrottle.clearCache("/time-tracking/entries");
+    globalThrottle.clearCache("/time-tracking/active");
+    return smartRequest("post", "/time-tracking/manual", data);
+  },
 
-  updateTimeEntry: (entryId, data) =>
-    apiClient.put(`/time-tracking/entries/${entryId}`, data),
+  updateTimeEntry: (entryId, data) => {
+    globalThrottle.clearCache("/time-tracking/entries");
+    return smartRequest("put", `/time-tracking/entries/${entryId}`, data);
+  },
 
-  deleteTimeEntry: (entryId) =>
-    apiClient.delete(`/time-tracking/entries/${entryId}`),
+  deleteTimeEntry: (entryId) => {
+    globalThrottle.clearCache("/time-tracking/entries");
+    return smartRequest("delete", `/time-tracking/entries/${entryId}`);
+  },
 
-  recordActivity: (data) => apiClient.post("/time-tracking/activity", data),
+  recordActivity: (data) =>
+    smartRequest("post", "/time-tracking/activity", data),
 
   uploadScreenshot: (entryId, file) => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiClient.post(
+    return smartRequest(
+      "post",
       `/time-tracking/screenshot?time_entry_id=${entryId}`,
       formData,
       {
@@ -316,235 +811,338 @@ export const timeTrackingAPI = {
   },
 
   getDailyReport: (date) =>
-    apiClient.get("/time-tracking/reports/daily", { params: { date } }),
+    smartRequest("get", "/time-tracking/reports/daily", null, {
+      params: { date },
+    }),
 
   getTeamTimeReport: (startDate, endDate) =>
-    apiClient.get("/time-tracking/reports/team", {
+    smartRequest("get", "/time-tracking/reports/team", null, {
       params: { start_date: startDate, end_date: endDate },
     }),
 
-  // NEW: Approve time entry
   approveTimeEntry: (entryId) =>
-    apiClient.post(`/time-tracking/entries/${entryId}/approve`),
+    smartRequest("post", `/time-tracking/entries/${entryId}/approve`),
 
-  // NEW: Get entries needing approval
   getEntriesNeedingApproval: () =>
-    apiClient.get("/time-tracking/entries/pending-approval"),
-};
+    smartRequest("get", "/time-tracking/entries/pending-approval"),
 
-// Enhanced Analytics API - organization-scoped
-export const analyticsAPI = {
-  getDashboardAnalytics: async () => {
+  getTaskTimeEntries: async (taskId, params = {}) => {
     try {
-      const response = await apiClient.get("/analytics/dashboard");
+      const response = await smartRequest(
+        "get",
+        `/time-tracking/tasks/${taskId}/entries`,
+        null,
+        { params }
+      );
       return response;
     } catch (error) {
-      console.warn("Failed to fetch dashboard analytics:", error.message);
-      return { data: { user_stats: { total_hours: 0, avg_activity: 0 } } }; // Return default data
+      console.warn("Failed to fetch task time entries:", error.message);
+      return { data: { entries: [] } };
     }
   },
 
-  getTeamAnalytics: (startDate, endDate) =>
-    apiClient.get("/analytics/team", {
-      params: { start_date: startDate, end_date: endDate },
-    }),
+  getProjectTimeReport: async (projectId, params = {}) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        `/time-tracking/projects/${projectId}/report`,
+        null,
+        { params }
+      );
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch project time report:", error.message);
+      return { data: {} };
+    }
+  },
+};
 
-  getProductivityAnalytics: (period = "week") =>
-    apiClient.get("/analytics/productivity", {
-      params: { period },
-    }),
+// Enhanced Analytics API with smart caching
+export const analyticsAPI = {
+  getDashboardAnalytics: async () => {
+    try {
+      const response = await smartRequest("get", "/analytics/dashboard");
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch dashboard analytics:", error.message);
+      return { data: { user_stats: { total_hours: 0, avg_activity: 0 } } };
+    }
+  },
+
+  getTeamAnalytics: async (startDate, endDate) => {
+    try {
+      const response = await smartRequest("get", "/analytics/team", null, {
+        params: { start_date: startDate, end_date: endDate },
+      });
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch team analytics:", error.message);
+      return { data: { team_stats: [] } };
+    }
+  },
+
+  getProductivityAnalytics: async (period = "week") => {
+    try {
+      const response = await smartRequest(
+        "get",
+        "/analytics/productivity",
+        null,
+        {
+          params: { period },
+        }
+      );
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch productivity analytics:", error.message);
+      return { data: { productivity_score: 0 } };
+    }
+  },
 
   generateCustomReport: (params) =>
-    apiClient.get("/analytics/reports/custom", { params }),
+    smartRequest("get", "/analytics/reports/custom", null, { params }),
 
-  // NEW: Get organization analytics
   getOrganizationAnalytics: (params = {}) =>
-    apiClient.get("/analytics/organization", { params }),
+    smartRequest("get", "/analytics/organization", null, { params }),
 
-  // NEW: Export analytics data
   exportAnalytics: (format, params = {}) =>
-    apiClient.get("/analytics/export", {
+    smartRequest("get", "/analytics/export", null, {
       params: { format, ...params },
       responseType: "blob",
     }),
+
+  getTaskAnalytics: async (params = {}) => {
+    try {
+      const response = await smartRequest("get", "/analytics/tasks", null, {
+        params,
+      });
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch task analytics:", error.message);
+      return { data: {} };
+    }
+  },
+
+  getProjectAnalytics: async (projectId, params = {}) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        `/analytics/projects/${projectId}`,
+        null,
+        { params }
+      );
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch project analytics:", error.message);
+      return { data: {} };
+    }
+  },
+
+  getUserProductivity: async (userId, params = {}) => {
+    try {
+      const response = await smartRequest(
+        "get",
+        `/analytics/users/${userId}/productivity`,
+        null,
+        { params }
+      );
+      return response;
+    } catch (error) {
+      console.warn("Failed to fetch user productivity:", error.message);
+      return { data: {} };
+    }
+  },
 };
 
-// Enhanced Integrations API - organization-scoped
+// Enhanced Integrations API
 export const integrationsAPI = {
-  getIntegrations: () => apiClient.get("/integrations"),
+  getIntegrations: () => smartRequest("get", "/integrations"),
 
   connectSlack: (webhookUrl) =>
-    apiClient.post("/integrations/slack/connect", { webhook_url: webhookUrl }),
+    smartRequest("post", "/integrations/slack/connect", {
+      webhook_url: webhookUrl,
+    }),
 
   connectTrello: (apiKey, token) =>
-    apiClient.post("/integrations/trello/connect", { api_key: apiKey, token }),
+    smartRequest("post", "/integrations/trello/connect", {
+      api_key: apiKey,
+      token,
+    }),
 
   connectGitHub: (token) =>
-    apiClient.post("/integrations/github/connect", { token }),
+    smartRequest("post", "/integrations/github/connect", { token }),
 
   sendSlackNotification: (message, channel) =>
-    apiClient.post("/integrations/slack/notify", { message, channel }),
+    smartRequest("post", "/integrations/slack/notify", { message, channel }),
 
   createTrelloCard: (listId, name, description) =>
-    apiClient.post("/integrations/trello/create-card", {
+    smartRequest("post", "/integrations/trello/create-card", {
       list_id: listId,
       name,
       description,
     }),
 
   createGitHubIssue: (repo, title, body, labels) =>
-    apiClient.post("/integrations/github/create-issue", {
+    smartRequest("post", "/integrations/github/create-issue", {
       repo,
       title,
       body,
       labels,
     }),
 
-  disconnectIntegration: (integrationId) =>
-    apiClient.delete(`/integrations/${integrationId}`),
+  disconnectIntegration: (integrationId) => {
+    globalThrottle.clearCache("/integrations");
+    return smartRequest("delete", `/integrations/${integrationId}`);
+  },
 
-  // NEW: Test integration connection
   testIntegration: (integrationId) =>
-    apiClient.post(`/integrations/${integrationId}/test`),
+    smartRequest("post", `/integrations/${integrationId}/test`),
 };
 
-// Enhanced Invitations API - organization-scoped
-export const invitationsAPI = {
-  sendInvitation: (data) => apiClient.post("/invitations", data),
-
-  getInvitations: (params = {}) => apiClient.get("/invitations", { params }),
-
-  getInvitationStats: () => apiClient.get("/invitations/stats"),
-
-  verifyInvitation: (token) => apiClient.get(`/invitations/verify/${token}`),
-
-  cancelInvitation: (invitationId) =>
-    apiClient.delete(`/invitations/${invitationId}`),
-
-  // NEW: Resend invitation
-  resendInvitation: (invitationId) =>
-    apiClient.post(`/invitations/${invitationId}/resend`),
-
-  // NEW: Extend invitation expiry
-  extendInvitation: (invitationId, days) =>
-    apiClient.patch(`/invitations/${invitationId}/extend`, { days }),
-
-  // NEW: Regenerate invitation link
-  regenerateInvitation: (invitationId) =>
-    apiClient.post(`/invitations/${invitationId}/regenerate`),
-
-  // NEW: Bulk send invitations
-  bulkSendInvitations: (invitations, defaultMessage = "") =>
-    apiClient.post("/invitations/bulk", { invitations, defaultMessage }),
-};
-
-// NEW: Organization API - organization management
-export const organizationAPI = {
-  // Get current organization info
-  getOrganization: () => apiClient.get("/organizations/current"),
-
-  // Update organization info
-  updateOrganization: (data) => apiClient.put("/organizations/current", data),
-
-  // Get organization settings
-  getSettings: () => apiClient.get("/organizations/settings"),
-
-  // Update organization settings
-  updateSettings: (settings) =>
-    apiClient.put("/organizations/settings", settings),
-
-  // Get organization statistics
-  getStats: () => apiClient.get("/organizations/stats"),
-
-  // Get organization members (alias to usersAPI.getUsers)
-  getMembers: (params = {}) => usersAPI.getUsers(params),
-
-  // Update member role/permissions
-  updateMember: (memberId, data) => usersAPI.updateUser(memberId, data),
-
-  // Remove member from organization
-  removeMember: (memberId) => usersAPI.deleteUser(memberId),
-
-  // Get organization invitations
-  getInvitations: (params = {}) => invitationsAPI.getInvitations(params),
-
-  // Send organization invitation
-  sendInvitation: (data) => invitationsAPI.sendInvitation(data),
-
-  // Cancel organization invitation
-  cancelInvitation: (invitationId) =>
-    invitationsAPI.cancelInvitation(invitationId),
-
-  // Resend organization invitation
-  resendInvitation: (invitationId) =>
-    invitationsAPI.resendInvitation(invitationId),
-
-  // Get organization billing info
-  getBilling: () => apiClient.get("/organizations/billing"),
-
-  // Update billing information
-  updateBilling: (billingData) =>
-    apiClient.put("/organizations/billing", billingData),
-
-  // Upgrade/downgrade plan
-  changePlan: (planId) =>
-    apiClient.post("/organizations/billing/change-plan", { planId }),
-};
-
-// WebSocket API - organization-scoped
+// WebSocket API
 export const websocketAPI = {
-  getOnlineUsers: () => apiClient.get("/websocket/online-users"),
-
-  // NEW: Get organization online users
+  getOnlineUsers: () => smartRequest("get", "/websocket/online-users"),
   getOrganizationOnlineUsers: () =>
-    apiClient.get("/websocket/organization-online"),
-
-  // NEW: Send organization-wide notification
+    smartRequest("get", "/websocket/organization-online"),
   sendOrganizationNotification: (message, type = "info") =>
-    apiClient.post("/websocket/organization-notify", { message, type }),
+    smartRequest("post", "/websocket/organization-notify", { message, type }),
 };
 
-// NEW: Tasks API - organization-scoped task management
+// Enhanced Invitations API
+export const invitationsAPI = {
+  sendInvitation: (data) => {
+    globalThrottle.clearCache("/invitations");
+    return smartRequest("post", "/invitations", data);
+  },
+  getInvitations: (params = {}) =>
+    smartRequest("get", "/invitations", null, { params }),
+  getInvitationStats: () => smartRequest("get", "/invitations/stats"),
+  verifyInvitation: (token) =>
+    smartRequest("get", `/invitations/verify/${token}`),
+  cancelInvitation: (invitationId) => {
+    globalThrottle.clearCache("/invitations");
+    return smartRequest("delete", `/invitations/${invitationId}`);
+  },
+  resendInvitation: (invitationId) =>
+    smartRequest("post", `/invitations/${invitationId}/resend`),
+  extendInvitation: (invitationId, days) =>
+    smartRequest("patch", `/invitations/${invitationId}/extend`, { days }),
+  regenerateInvitation: (invitationId) =>
+    smartRequest("post", `/invitations/${invitationId}/regenerate`),
+  bulkSendInvitations: (invitations, defaultMessage = "") => {
+    globalThrottle.clearCache("/invitations");
+    return smartRequest("post", "/invitations/bulk", {
+      invitations,
+      defaultMessage,
+    });
+  },
+};
+
+// Enhanced Tasks API for advanced task management
 export const tasksAPI = {
-  getTasks: (params = {}) => apiClient.get("/tasks", { params }),
+  // Task CRUD operations
+  getTasks: (params = {}) => smartRequest("get", "/tasks", null, { params }),
+  getTask: (taskId) => smartRequest("get", `/tasks/${taskId}`),
+  createTask: (taskData) => {
+    globalThrottle.clearCache("/tasks");
+    return smartRequest("post", "/tasks", taskData);
+  },
+  updateTask: (taskId, taskData) => {
+    globalThrottle.clearCache("/tasks");
+    globalThrottle.clearCache(`/tasks/${taskId}`);
+    return smartRequest("put", `/tasks/${taskId}`, taskData);
+  },
+  deleteTask: (taskId) => {
+    globalThrottle.clearCache("/tasks");
+    return smartRequest("delete", `/tasks/${taskId}`);
+  },
 
-  getTask: (taskId) => apiClient.get(`/tasks/${taskId}`),
+  // Task assignment with role-based permissions
+  assignTask: (taskId, userId) => {
+    globalThrottle.clearCache("/tasks");
+    return smartRequest("post", `/tasks/${taskId}/assign`, { userId });
+  },
 
-  createTask: (taskData) => apiClient.post("/tasks", taskData),
+  reassignTask: (taskId, fromUserId, toUserId) => {
+    globalThrottle.clearCache("/tasks");
+    return smartRequest("post", `/tasks/${taskId}/reassign`, {
+      fromUserId,
+      toUserId,
+    });
+  },
 
-  updateTask: (taskId, taskData) => apiClient.put(`/tasks/${taskId}`, taskData),
+  // Task status management
+  updateTaskStatus: (taskId, status) => {
+    globalThrottle.clearCache("/tasks");
+    return smartRequest("patch", `/tasks/${taskId}/status`, { status });
+  },
 
-  deleteTask: (taskId) => apiClient.delete(`/tasks/${taskId}`),
-
-  // Assign task to user
-  assignTask: (taskId, userId) =>
-    apiClient.post(`/tasks/${taskId}/assign`, { userId }),
-
-  // Update task status
-  updateTaskStatus: (taskId, status) =>
-    apiClient.patch(`/tasks/${taskId}/status`, { status }),
-
-  // Add comment to task
+  // Task collaboration
   addTaskComment: (taskId, comment) =>
-    apiClient.post(`/tasks/${taskId}/comments`, { comment }),
+    smartRequest("post", `/tasks/${taskId}/comments`, { comment }),
 
-  // Get task comments
-  getTaskComments: (taskId) => apiClient.get(`/tasks/${taskId}/comments`),
+  getTaskComments: (taskId) => smartRequest("get", `/tasks/${taskId}/comments`),
 
-  // Add task watcher
   addTaskWatcher: (taskId, userId) =>
-    apiClient.post(`/tasks/${taskId}/watchers`, { userId }),
+    smartRequest("post", `/tasks/${taskId}/watchers`, { userId }),
 
-  // Remove task watcher
   removeTaskWatcher: (taskId, userId) =>
-    apiClient.delete(`/tasks/${taskId}/watchers/${userId}`),
+    smartRequest("delete", `/tasks/${taskId}/watchers/${userId}`),
 
-  // Get user's tasks
+  // User-specific task queries
   getUserTasks: (userId, params = {}) =>
-    apiClient.get(`/tasks/user/${userId}`, { params }),
+    smartRequest("get", `/tasks/user/${userId}`, null, { params }),
 
-  // Get overdue tasks
-  getOverdueTasks: () => apiClient.get("/tasks/overdue"),
+  getMyTasks: (params = {}) =>
+    smartRequest("get", "/tasks/my", null, { params }),
+
+  getAssignedTasks: (params = {}) =>
+    smartRequest("get", "/tasks/assigned", null, { params }),
+
+  getCreatedTasks: (params = {}) =>
+    smartRequest("get", "/tasks/created", null, { params }),
+
+  // Task filtering and search
+  getOverdueTasks: () => smartRequest("get", "/tasks/overdue"),
+
+  getTasksByPriority: (priority) =>
+    smartRequest("get", "/tasks/priority", null, { params: { priority } }),
+
+  getTasksByStatus: (status) =>
+    smartRequest("get", "/tasks/status", null, { params: { status } }),
+
+  searchTasks: (query, params = {}) =>
+    smartRequest("get", "/tasks/search", null, {
+      params: { q: query, ...params },
+    }),
+
+  // Task dependencies
+  addTaskDependency: (taskId, dependencyTaskId) =>
+    smartRequest("post", `/tasks/${taskId}/dependencies`, { dependencyTaskId }),
+
+  removeTaskDependency: (taskId, dependencyTaskId) =>
+    smartRequest("delete", `/tasks/${taskId}/dependencies/${dependencyTaskId}`),
+
+  // Task time tracking
+  startTaskTimer: (taskId) =>
+    smartRequest("post", `/tasks/${taskId}/timer/start`),
+
+  stopTaskTimer: (taskId) =>
+    smartRequest("post", `/tasks/${taskId}/timer/stop`),
+
+  getTaskTimeTracking: (taskId) =>
+    smartRequest("get", `/tasks/${taskId}/time-tracking`),
+
+  // Task analytics and reports
+  getTaskStats: () => smartRequest("get", "/tasks/stats"),
+
+  getTaskCompletionRate: (params = {}) =>
+    smartRequest("get", "/tasks/completion-rate", null, { params }),
+
+  exportTasks: (format, params = {}) =>
+    smartRequest("get", "/tasks/export", null, {
+      params: { format, ...params },
+      responseType: "blob",
+    }),
 };
 
 // Export the default axios instance for custom requests

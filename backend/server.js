@@ -29,7 +29,7 @@ const server = http.createServer(app);
 
 // Configure allowed origins
 const allowedOrigins = [
-  "https://icon-time-tracker.vercel.app",
+  "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://172.20.10.7:3000",
   process.env.FRONTEND_URL,
@@ -43,6 +43,9 @@ const io = socketIo(server, {
     credentials: true,
   },
 });
+
+// Make sure WebSocket is running on the same port as your API
+//console.log(`WebSocket server running on port ${PORT}`);
 
 // Configure logging
 const logger = winston.createLogger({

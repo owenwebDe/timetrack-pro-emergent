@@ -1,10 +1,12 @@
-// frontend/src/contexts/OrganizationContext.js - Organization state management
+// frontend/src/contexts/OrganizationContext.js - OPTIMIZED VERSION
 import React, {
   createContext,
   useContext,
   useState,
   useEffect,
   useCallback,
+  useRef,
+  useMemo,
 } from "react";
 import { organizationAPI } from "../api/client";
 
@@ -22,7 +24,7 @@ export const useOrganization = () => {
   return context;
 };
 
-// Organization Provider component
+// Organization Provider component - OPTIMIZED
 export const OrganizationProvider = ({ children }) => {
   const [organization, setOrganization] = useState(null);
   const [members, setMembers] = useState([]);
@@ -33,119 +35,277 @@ export const OrganizationProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
 
-  // Initialize organization data
+  // Debug: Log loading state changes
+  useEffect(() => {
+    console.log("🔄 OrganizationContext loading state changed:", {
+      loading,
+      initialized,
+      hasOrganization: !!organization,
+      membersCount: members.length,
+      invitationsCount: invitations.length
+    });
+  }, [loading, initialized, organization, members.length, invitations.length]);
+
+  // Refs to prevent unnecessary re-renders and API calls
+  const lastFetchTime = useRef(0);
+  const initializationInProgress = useRef(false);
+  const mountedRef = useRef(true);
+
+  // Minimum time between data fetches (5 minutes)
+  const FETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+  // Check if we should fetch data
+  const shouldFetch = useCallback(() => {
+    const now = Date.now();
+    return now - lastFetchTime.current > FETCH_INTERVAL;
+  }, []);
+
+  // Optimized initialization - only fetch when needed
   const initializeOrganization = useCallback(async () => {
-    if (initialized) return;
+    console.log("🔄 OrganizationContext: initializeOrganization called");
+    console.log("🔄 Current state:", {
+      initialized,
+      initializationInProgress: initializationInProgress.current,
+      loading,
+      hasOrganization: !!organization,
+      membersCount: members.length
+    });
+
+    // Prevent multiple simultaneous initializations
+    if (initialized || initializationInProgress.current) {
+      console.log(
+        "🚫 Organization initialization skipped - already initialized or in progress"
+      );
+      return;
+    }
+
+    // Check if we have user data
+    const user = JSON.parse(localStorage.getItem("hubstaff_user") || "{}");
+    console.log("🔄 User data check:", {
+      hasUser: !!user,
+      organizationId: user.organizationId,
+      userRole: user.role,
+      userName: user.name
+    });
+    
+    if (!user.organizationId) {
+      console.warn("🚫 No organization ID found for user - cannot initialize");
+      setLoading(false);
+      return;
+    }
+
+    // Check if we should fetch (rate limiting)
+    if (!shouldFetch()) {
+      console.log("🚫 Organization data fetch skipped - too recent");
+      console.log("🔄 Time since last fetch:", Date.now() - lastFetchTime.current, "ms");
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log("🚀 Starting organization initialization...");
+      initializationInProgress.current = true;
       setLoading(true);
       setError(null);
 
-      const user = JSON.parse(localStorage.getItem("hubstaff_user") || "{}");
+      // Fetch only essential data initially
+      console.log("🔄 Fetching organization data and stats...");
+      const [orgResponse, statsResponse] = await Promise.allSettled([
+        organizationAPI.getOrganization(),
+        organizationAPI.getStats(),
+      ]);
 
-      if (!user.organizationId) {
-        console.warn("No organization ID found for user");
-        setLoading(false);
-        return;
+      console.log("📊 API responses received:", {
+        orgStatus: orgResponse.status,
+        statsStatus: statsResponse.status,
+        orgData: orgResponse.status === 'fulfilled' ? !!orgResponse.value?.data : null,
+        statsData: statsResponse.status === 'fulfilled' ? !!statsResponse.value?.data : null,
+        orgResponseData: orgResponse.status === 'fulfilled' ? orgResponse.value?.data : null,
+        statsResponseData: statsResponse.status === 'fulfilled' ? statsResponse.value?.data : null
+      });
+
+      // Process organization data
+      console.log("🔍 Organization data check:", {
+        orgResponseStatus: orgResponse.status,
+        hasOrgResponseValue: !!orgResponse.value,
+        hasOrgResponseData: !!orgResponse.value?.data,
+        orgResponseDataType: typeof orgResponse.value?.data,
+        orgResponseDataLength: Array.isArray(orgResponse.value?.data) ? orgResponse.value.data.length : 'not array',
+        mountedRefCurrent: mountedRef.current,
+        orgResponseValue: orgResponse.value,
+        willSetOrganization: orgResponse.status === "fulfilled" && orgResponse.value?.data && mountedRef.current
+      });
+
+      // Handle the case where auth/me returns empty array or is rate limited
+      if (
+        orgResponse.status === "fulfilled" &&
+        orgResponse.value?.data &&
+        !Array.isArray(orgResponse.value.data) &&
+        Object.keys(orgResponse.value.data).length > 0
+      ) {
+        console.log("✅ Setting organization data:", {
+          orgId: orgResponse.value.data.id,
+          orgName: orgResponse.value.data.name,
+          hasSettings: !!orgResponse.value.data.settings
+        });
+        setOrganization(orgResponse.value.data);
+        setSettings(orgResponse.value.data.settings || {});
+      } else if (orgResponse.status === "rejected") {
+        console.error("❌ Failed to fetch organization info:", orgResponse.reason);
+      } else {
+        console.log("⚠️ Organization data not set - creating fallback organization");
+        // Create a fallback organization from user data
+        const user = JSON.parse(localStorage.getItem("hubstaff_user") || "{}");
+        const fallbackOrg = {
+          id: user.organizationId || user.organization_id || "default-org",
+          name: user.organizationName || user.organization_name || user.companyName || "Default Organization",
+          settings: {}
+        };
+        console.log("🔧 Setting fallback organization:", fallbackOrg);
+        console.log("🔧 User data for fallback:", {
+          organizationId: user.organizationId,
+          organization_id: user.organization_id,
+          organizationName: user.organizationName,
+          organization_name: user.organization_name,
+          companyName: user.companyName
+        });
+        setOrganization(fallbackOrg);
+        setSettings({});
       }
 
-      // Fetch organization data
-      await Promise.all([
-        fetchOrganizationInfo(),
-        fetchOrganizationMembers(),
-        fetchOrganizationInvitations(),
-        fetchOrganizationStats(),
-      ]);
+      // Process stats data
+      if (
+        statsResponse.status === "fulfilled" &&
+        statsResponse.value.data &&
+        mountedRef.current
+      ) {
+        setStats(statsResponse.value.data);
+      } else if (statsResponse.status === "rejected") {
+        console.error(
+          "Failed to fetch organization stats:",
+          statsResponse.reason
+        );
+      }
 
+      // Fetch members and invitations immediately after organization is set
+      console.log("🔄 Calling fetchMembersAndInvitations immediately...");
+      // Force fetch regardless of mount status since we need the data
+      setTimeout(() => {
+        console.log("🔄 Timeout reached - calling fetchMembersAndInvitations");
+        fetchMembersAndInvitations();
+      }, 500);
+
+      lastFetchTime.current = Date.now();
       setInitialized(true);
+      console.log("✅ Organization initialization completed successfully");
+      console.log("🔄 Final state check:", {
+        hasOrganization: !!organization,
+        loading,
+        initialized: true
+      });
     } catch (error) {
-      console.error("Failed to initialize organization:", error);
-      setError("Failed to load organization data");
+      console.error("❌ Failed to initialize organization:", error);
+      if (mountedRef.current) {
+        setError("Failed to load organization data");
+      }
     } finally {
+      initializationInProgress.current = false;
+      console.log("🔄 Setting loading to false (forced)");
       setLoading(false);
     }
-  }, [initialized]);
+  }, [initialized, shouldFetch]);
 
-  // Fetch organization information
-  const fetchOrganizationInfo = useCallback(async () => {
+  // Separate function to fetch members and invitations (non-critical data)
+  const fetchMembersAndInvitations = useCallback(async () => {
     try {
-      const response = await organizationAPI.getOrganization();
-      setOrganization(response.data);
-      setSettings(response.data.settings || {});
+      const user = JSON.parse(localStorage.getItem("hubstaff_user") || "{}");
+      
+      // Only admins and managers can fetch members and invitations
+      if (user.role !== "admin" && user.role !== "manager") {
+        console.log("👤 Regular user - skipping members and invitations fetch");
+        return;
+      }
+      
+      console.log("🔄 Fetching members and invitations...");
+      const [membersResponse, invitationsResponse] = await Promise.allSettled([
+        organizationAPI.getMembers(),
+        organizationAPI.getInvitations(),
+      ]);
+
+      console.log("👥 Members response:", {
+        status: membersResponse.status,
+        hasData: membersResponse.status === 'fulfilled' ? !!membersResponse.value?.data : false,
+        data: membersResponse.status === 'fulfilled' ? membersResponse.value?.data : null
+      });
+
+      console.log("📧 Invitations response:", {
+        status: invitationsResponse.status,
+        hasData: invitationsResponse.status === 'fulfilled' ? !!invitationsResponse.value?.data : false,
+        data: invitationsResponse.status === 'fulfilled' ? invitationsResponse.value?.data : null
+      });
+
+      if (
+        membersResponse.status === "fulfilled" &&
+        membersResponse.value.data &&
+        mountedRef.current
+      ) {
+        const members = membersResponse.value.data.users || membersResponse.value.data || [];
+        console.log("✅ Setting members:", members.length, "members");
+        setMembers(members);
+      } else {
+        console.log("⚠️ No members data to set");
+      }
+
+      if (
+        invitationsResponse.status === "fulfilled" &&
+        invitationsResponse.value.data &&
+        mountedRef.current
+      ) {
+        const invitations = invitationsResponse.value.data.invitations || invitationsResponse.value.data || [];
+        console.log("✅ Setting invitations:", invitations.length, "invitations");
+        setInvitations(invitations);
+      } else {
+        console.log("⚠️ No invitations data to set");
+      }
     } catch (error) {
-      console.error("Failed to fetch organization info:", error);
-      throw error;
+      console.error("❌ Failed to fetch members and invitations:", error);
+      // Don't set error state for non-critical data
     }
   }, []);
 
-  // Fetch organization members
-  const fetchOrganizationMembers = useCallback(async () => {
-    try {
-      const response = await organizationAPI.getMembers();
-      setMembers(response.data.users || []);
-    } catch (error) {
-      console.error("Failed to fetch organization members:", error);
-      // Don't throw error for members as it's not critical for basic functionality
-      setMembers([]);
-    }
-  }, []);
-
-  // Fetch organization invitations
-  const fetchOrganizationInvitations = useCallback(async () => {
-    try {
-      const response = await organizationAPI.getInvitations();
-      setInvitations(response.data.invitations || []);
-    } catch (error) {
-      console.error("Failed to fetch organization invitations:", error);
-      // Don't throw error for invitations as it's not critical for basic functionality
-      setInvitations([]);
-    }
-  }, []);
-
-  // Fetch organization statistics
-  const fetchOrganizationStats = useCallback(async () => {
-    try {
-      const response = await organizationAPI.getStats();
-      setStats(response.data || {});
-    } catch (error) {
-      console.error("Failed to fetch organization stats:", error);
-      // Don't throw error for stats as it's not critical for basic functionality
-      setStats({});
-    }
-  }, []);
-
-  // Refresh all organization data
+  // Optimized refresh function - only refresh when needed
   const refreshOrganization = useCallback(async () => {
+    if (!shouldFetch()) {
+      console.log("Organization refresh skipped - too recent");
+      return;
+    }
+
     try {
       setLoading(true);
-      await Promise.all([
-        fetchOrganizationInfo(),
-        fetchOrganizationMembers(),
-        fetchOrganizationInvitations(),
-        fetchOrganizationStats(),
-      ]);
+      await initializeOrganization();
     } catch (error) {
       console.error("Failed to refresh organization:", error);
-      setError("Failed to refresh organization data");
+      if (mountedRef.current) {
+        setError("Failed to refresh organization data");
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [
-    fetchOrganizationInfo,
-    fetchOrganizationMembers,
-    fetchOrganizationInvitations,
-    fetchOrganizationStats,
-  ]);
+  }, [initializeOrganization, shouldFetch]);
 
-  // Update organization settings
+  // Optimized settings update
   const updateOrganizationSettings = useCallback(async (newSettings) => {
     try {
       const response = await organizationAPI.updateSettings(newSettings);
-      setSettings(response.data.settings);
-      setOrganization((prev) => ({
-        ...prev,
-        settings: response.data.settings,
-      }));
+      if (mountedRef.current) {
+        setSettings(response.data.settings);
+        setOrganization((prev) => ({
+          ...prev,
+          settings: response.data.settings,
+        }));
+      }
       return response.data;
     } catch (error) {
       console.error("Failed to update organization settings:", error);
@@ -153,19 +313,21 @@ export const OrganizationProvider = ({ children }) => {
     }
   }, []);
 
-  // Send invitation
+  // Optimized invitation management
   const sendInvitation = useCallback(async (invitationData) => {
     try {
       const response = await organizationAPI.sendInvitation(invitationData);
 
-      // Add the new invitation to the list
-      setInvitations((prev) => [response.data.invitation, ...prev]);
+      if (mountedRef.current) {
+        // Add the new invitation to the list
+        setInvitations((prev) => [response.data.invitation, ...prev]);
 
-      // Update stats
-      setStats((prev) => ({
-        ...prev,
-        pendingInvitations: (prev.pendingInvitations || 0) + 1,
-      }));
+        // Update stats optimistically
+        setStats((prev) => ({
+          ...prev,
+          pendingInvitations: (prev.pendingInvitations || 0) + 1,
+        }));
+      }
 
       return response.data;
     } catch (error) {
@@ -174,38 +336,42 @@ export const OrganizationProvider = ({ children }) => {
     }
   }, []);
 
-  // Cancel invitation
+  // Optimized invitation cancellation
   const cancelInvitation = useCallback(async (invitationId) => {
     try {
       await organizationAPI.cancelInvitation(invitationId);
 
-      // Remove the invitation from the list
-      setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
+      if (mountedRef.current) {
+        // Remove the invitation from the list
+        setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
 
-      // Update stats
-      setStats((prev) => ({
-        ...prev,
-        pendingInvitations: Math.max((prev.pendingInvitations || 1) - 1, 0),
-      }));
+        // Update stats optimistically
+        setStats((prev) => ({
+          ...prev,
+          pendingInvitations: Math.max((prev.pendingInvitations || 1) - 1, 0),
+        }));
+      }
     } catch (error) {
       console.error("Failed to cancel invitation:", error);
       throw error;
     }
   }, []);
 
-  // Resend invitation
+  // Optimized invitation resend
   const resendInvitation = useCallback(async (invitationId) => {
     try {
       const response = await organizationAPI.resendInvitation(invitationId);
 
-      // Update the invitation in the list
-      setInvitations((prev) =>
-        prev.map((inv) =>
-          inv.id === invitationId
-            ? { ...inv, ...response.data.invitation }
-            : inv
-        )
-      );
+      if (mountedRef.current) {
+        // Update the invitation in the list
+        setInvitations((prev) =>
+          prev.map((inv) =>
+            inv.id === invitationId
+              ? { ...inv, ...response.data.invitation }
+              : inv
+          )
+        );
+      }
 
       return response.data;
     } catch (error) {
@@ -214,27 +380,32 @@ export const OrganizationProvider = ({ children }) => {
     }
   }, []);
 
-  // Add member (when invitation is accepted)
+  // Optimized member management
   const addMember = useCallback((newMember) => {
-    setMembers((prev) => [...prev, newMember]);
-    setStats((prev) => ({
-      ...prev,
-      totalUsers: (prev.totalUsers || 0) + 1,
-      activeUsers: (prev.activeUsers || 0) + 1,
-    }));
+    if (mountedRef.current) {
+      setMembers((prev) => [...prev, newMember]);
+      setStats((prev) => ({
+        ...prev,
+        totalUsers: (prev.totalUsers || 0) + 1,
+        activeUsers: (prev.activeUsers || 0) + 1,
+      }));
+    }
   }, []);
 
-  // Update member
   const updateMember = useCallback(async (memberId, updateData) => {
     try {
       const response = await organizationAPI.updateMember(memberId, updateData);
 
-      // Update the member in the list
-      setMembers((prev) =>
-        prev.map((member) =>
-          member.id === memberId ? { ...member, ...response.data.user } : member
-        )
-      );
+      if (mountedRef.current) {
+        // Update the member in the list
+        setMembers((prev) =>
+          prev.map((member) =>
+            member.id === memberId
+              ? { ...member, ...response.data.user }
+              : member
+          )
+        );
+      }
 
       return response.data;
     } catch (error) {
@@ -243,27 +414,28 @@ export const OrganizationProvider = ({ children }) => {
     }
   }, []);
 
-  // Remove member
   const removeMember = useCallback(async (memberId) => {
     try {
       await organizationAPI.removeMember(memberId);
 
-      // Remove the member from the list
-      setMembers((prev) => prev.filter((member) => member.id !== memberId));
+      if (mountedRef.current) {
+        // Remove the member from the list
+        setMembers((prev) => prev.filter((member) => member.id !== memberId));
 
-      // Update stats
-      setStats((prev) => ({
-        ...prev,
-        totalUsers: Math.max((prev.totalUsers || 1) - 1, 0),
-        activeUsers: Math.max((prev.activeUsers || 1) - 1, 0),
-      }));
+        // Update stats optimistically
+        setStats((prev) => ({
+          ...prev,
+          totalUsers: Math.max((prev.totalUsers || 1) - 1, 0),
+          activeUsers: Math.max((prev.activeUsers || 1) - 1, 0),
+        }));
+      }
     } catch (error) {
       console.error("Failed to remove member:", error);
       throw error;
     }
   }, []);
 
-  // Get member by ID
+  // Memoized utility functions
   const getMember = useCallback(
     (memberId) => {
       return members.find((member) => member.id === memberId);
@@ -271,7 +443,6 @@ export const OrganizationProvider = ({ children }) => {
     [members]
   );
 
-  // Get members by role
   const getMembersByRole = useCallback(
     (role) => {
       return members.filter((member) => member.role === role);
@@ -279,12 +450,10 @@ export const OrganizationProvider = ({ children }) => {
     [members]
   );
 
-  // Get pending invitations
   const getPendingInvitations = useCallback(() => {
     return invitations.filter((invitation) => invitation.status === "pending");
   }, [invitations]);
 
-  // Check if user can perform action based on role
   const canPerformAction = useCallback((action) => {
     const user = JSON.parse(localStorage.getItem("hubstaff_user") || "{}");
 
@@ -304,7 +473,6 @@ export const OrganizationProvider = ({ children }) => {
     }
   }, []);
 
-  // Check if organization has reached limits
   const hasReachedLimit = useCallback(
     (limitType) => {
       if (!organization) return false;
@@ -321,63 +489,102 @@ export const OrganizationProvider = ({ children }) => {
     [organization, stats]
   );
 
-  // Get organization plan features
   const getPlanFeatures = useCallback(() => {
     if (!organization) return {};
     return organization.billing?.features || {};
   }, [organization]);
 
-  // Initialize on mount
+  // Memoized value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({
+      // State
+      organization,
+      members,
+      invitations,
+      settings,
+      stats,
+      loading,
+      error,
+      initialized,
+
+      // Actions
+      initializeOrganization,
+      refreshOrganization,
+      updateOrganizationSettings,
+
+      // Invitation management
+      sendInvitation,
+      cancelInvitation,
+      resendInvitation,
+      getPendingInvitations,
+
+      // Member management
+      addMember,
+      updateMember,
+      removeMember,
+      getMember,
+      getMembersByRole,
+
+      // Utilities
+      canPerformAction,
+      hasReachedLimit,
+      getPlanFeatures,
+    }),
+    [
+      organization,
+      members,
+      invitations,
+      settings,
+      stats,
+      loading,
+      error,
+      initialized,
+      initializeOrganization,
+      refreshOrganization,
+      updateOrganizationSettings,
+      sendInvitation,
+      cancelInvitation,
+      resendInvitation,
+      getPendingInvitations,
+      addMember,
+      updateMember,
+      removeMember,
+      getMember,
+      getMembersByRole,
+      canPerformAction,
+      hasReachedLimit,
+      getPlanFeatures,
+    ]
+  );
+
+  // Initialize on mount - only once
   useEffect(() => {
+    console.log("🔄 OrganizationContext: useEffect initialization triggered");
     const user = localStorage.getItem("hubstaff_user");
-    if (user && !initialized) {
+    console.log("🔄 Initialization check:", {
+      hasUser: !!user,
+      initialized,
+      initializationInProgress: initializationInProgress.current,
+      shouldInitialize: user && !initialized && !initializationInProgress.current
+    });
+    
+    if (user && !initialized && !initializationInProgress.current) {
+      console.log("🚀 Calling initializeOrganization...");
       initializeOrganization();
+    } else {
+      console.log("🚫 Skipping initialization");
     }
-  }, [initializeOrganization, initialized]);
+  }, []); // Empty dependency array - only run once
 
-  const value = {
-    // State
-    organization,
-    members,
-    invitations,
-    settings,
-    stats,
-    loading,
-    error,
-    initialized,
-
-    // Actions
-    initializeOrganization,
-    refreshOrganization,
-    updateOrganizationSettings,
-
-    // Invitation management
-    sendInvitation,
-    cancelInvitation,
-    resendInvitation,
-    getPendingInvitations,
-
-    // Member management
-    addMember,
-    updateMember,
-    removeMember,
-    getMember,
-    getMembersByRole,
-
-    // Utilities
-    canPerformAction,
-    hasReachedLimit,
-    getPlanFeatures,
-
-    // Data fetchers
-    fetchOrganizationInfo,
-    fetchOrganizationMembers,
-    fetchOrganizationInvitations,
-    fetchOrganizationStats,
-  };
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return (
-    <OrganizationContext.Provider value={value}>
+    <OrganizationContext.Provider value={contextValue}>
       {children}
     </OrganizationContext.Provider>
   );

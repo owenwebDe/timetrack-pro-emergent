@@ -2,7 +2,7 @@
 import globalThrottle from "./globalThrottle";
 
 const API_BASE_URL =
-  process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
+  process.env.REACT_APP_BACKEND_URL || "https://icon-time-tracker.onrender.com";
 
 // Get token from localStorage
 const getToken = () => {

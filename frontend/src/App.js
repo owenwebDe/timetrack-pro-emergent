@@ -18,6 +18,7 @@ import {
   IntegrationsPage,
   AcceptInvitationPage,
 } from "./pages";
+import PerformanceMonitor from "./components/debug/PerformanceMonitor";
 
 // Import the NEW pages for updated registration flow
 import { OrganizationChoicePage } from "./pages/OrganizationChoicePage";
@@ -229,6 +230,8 @@ function App() {
           </Routes>
         </ProjectProvider>
       </BrowserRouter>
+      {/* Add this for development/testing */}
+      <PerformanceMonitor enabled={process.env.NODE_ENV === "development"} />
     </div>
   );
 }

@@ -43,9 +43,9 @@ echo "Frontend started with PID: $FRONTEND_PID"
 
 echo ""
 echo "🎉 Hubstaff Clone is starting up!"
-echo "📱 Frontend: https://icon-time-tracker.vercel.app"
-echo "🔧 Backend API: https://icon-time-tracker.onrender.com"
-echo "📚 API Docs: https://icon-time-tracker.onrender.com/docs"
+echo "📱 Frontend: http://localhost:3000"
+echo "🔧 Backend API: http://localhost:8001"
+echo "📚 API Docs: http://localhost:8001/docs"
 echo ""
 echo "Press Ctrl+C to stop all services"
 
